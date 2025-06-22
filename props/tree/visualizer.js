@@ -1,6 +1,12 @@
 "use strict";
 
 import { Arvore } from './tree.js';
+import { configureTexturaDaURL } from '../props.js';
+
+const TRUNK_TEXTURE = "https://media.discordapp.net/attachments/1376661148958589121/1386388039550369882/image.png?ex=685985fa&is=6858347a&hm=1bdaaabeabb38c1cf3c1bcbabe8c78884925b741f4b6e506ea487219d1b20222&=&format=webp&quality=lossless";
+const LEAF_TEXTURE = "https://media.discordapp.net/attachments/1376661148958589121/1386358135198973984/texture_leaves_by_kuschelirmel_stock_djtlyu-fullview.jpg?ex=68596a20&is=685818a0&hm=fc0c9a920f04d2f0b48c9ae412d4d03e3b4a8bdd1f0a4242779428a33cf0ed4e&=&format=webp";
+let trunkTexture = null;
+let leafTexture = null;
 // ==================================================================
 // Os valores a seguir são usados apenas uma vez quando o programa
 // é carregado. Modifique esses valores para ver seus efeitos.
@@ -88,6 +94,9 @@ function main() {
   gl = gCanvas.getContext('webgl2');
   if (!gl) alert("Vixe! Não achei WebGL 2.0 aqui :-(");
 
+  trunkTexture = configureTexturaDaURL(gl, TRUNK_TEXTURE);
+  leafTexture = configureTexturaDaURL(gl, LEAF_TEXTURE);
+
   console.log("Canvas: ", gCanvas.width, gCanvas.height);
 
   // interface
@@ -170,6 +179,13 @@ function setVAO(object){
   gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(aPosition);
 
+  const aTexCoord = gl.getAttribLocation(gShader.program, "aTexCoord");
+  const bufTex = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufTex);
+  gl.bufferData(gl.ARRAY_BUFFER, flatten(object.tex), gl.STATIC_DRAW);
+  gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(aTexCoord);
+
   return vao;
 }
 
@@ -238,7 +254,7 @@ function render() {
   gl.uniformMatrix4fv(gShader.uView, false, flatten(gCtx.view));
 
   // renderiza a árvore
-  gArvore.render(gl, gShader, gCtx);
+  gArvore.render(gl, gShader, gCtx, trunkTexture, leafTexture);
 
   window.requestAnimationFrame(render);
 }
@@ -253,6 +269,7 @@ var gVertexShaderSrc = `#version 300 es
 
 in  vec4 aPosition;
 in  vec3 aNormal;
+in  vec2 aTexCoord;
 
 uniform mat4 uModel;
 uniform mat4 uView;
@@ -264,6 +281,7 @@ uniform vec4 uLuzPos;
 out vec3 vNormal;
 out vec3 vLight;
 out vec3 vView;
+out vec2 vTexCoord;
 
 void main() {
     mat4 modelView = uView * uModel;
@@ -275,6 +293,8 @@ void main() {
 
     vLight = (uView * uLuzPos - pos).xyz;
     vView = -(pos.xyz);
+
+    vTexCoord = aTexCoord;
 }
 `;
 
@@ -285,6 +305,7 @@ precision highp float;
 in vec3 vNormal;
 in vec3 vLight;
 in vec3 vView;
+in vec2 vTexCoord;
 out vec4 corSaida;
 
 // cor = produto luz * material
@@ -292,6 +313,7 @@ uniform vec4 uCorAmbiente;
 uniform vec4 uCorDifusao;
 uniform vec4 uCorEspecular;
 uniform float uAlfaEsp;
+uniform sampler2D uTextureMap;
 
 void main() {
     vec3 normalV = normalize(vNormal);
@@ -310,7 +332,9 @@ void main() {
     }
     
     vec4 especular = ks * uCorEspecular;
-    corSaida = difusao + especular + uCorAmbiente;    
+
+    vec4 texColor = texture(uTextureMap, vTexCoord);
+    corSaida = (difusao + especular + uCorAmbiente) * texColor;
     corSaida.a = 1.0;
 }
 `;

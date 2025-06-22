@@ -12,7 +12,7 @@ export class Arvore{
     this.rodando = true;        // pausa a animação
   };
 
-  render(gl, gShader, gCtx) {
+  render(gl, gShader, gCtx, trunkTexture, leafTexture) {
     if(this.rodando){
         this.theta[1] += 0.5; // incrementa a rotação
     };
@@ -25,6 +25,11 @@ export class Arvore{
     
     gl.bindVertexArray(gShader.ArvoreVAOs[0]);
     let trunkModel = mult(baseModel, scale(.5, .8, .5));
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, trunkTexture);
+    gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+    gl.bindVertexArray(gShader.ArvoreVAOs[0]);
 
     let modelView = mult(gCtx.view, trunkModel);
     let modelViewInvTrans = transpose(inverse(modelView));
@@ -45,6 +50,11 @@ export class Arvore{
       
       // Apply baseModel transform to the whole leaf (including position above trunk)
       leafModel = mult(baseModel, leafModel);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, leafTexture);
+      gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+      gl.bindVertexArray(gShader.ArvoreVAOs[i + 1]);
 
       let mv = mult(gCtx.view, leafModel);
       let invT = transpose(inverse(mv));

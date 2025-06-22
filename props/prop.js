@@ -354,7 +354,7 @@ var gVertexShaderSrc = `#version 300 es
 
 in  vec4 aPosition;
 in  vec3 aNormal;
-in  vec2 aTexCoord; // NEW: texture coordinate attribute
+in  vec2 aTexCoord;
 
 uniform mat4 uModel;
 uniform mat4 uView;
@@ -366,7 +366,7 @@ uniform vec4 uLuzPos;
 out vec3 vNormal;
 out vec3 vLight;
 out vec3 vView;
-out vec2 vTexCoord; // NEW: pass texture coordinate to fragment shader
+out vec2 vTexCoord;
 
 void main() {
     mat4 modelView = uView * uModel;
@@ -379,7 +379,7 @@ void main() {
     vLight = (uView * uLuzPos - pos).xyz;
     vView = -(pos.xyz);
 
-    vTexCoord = aTexCoord; // NEW: pass through
+    vTexCoord = aTexCoord;
 }
 `;
 
@@ -390,7 +390,7 @@ precision highp float;
 in vec3 vNormal;
 in vec3 vLight;
 in vec3 vView;
-in vec2 vTexCoord; // NEW: receive texture coordinate
+in vec2 vTexCoord;
 out vec4 corSaida;
 
 // cor = produto luz * material
@@ -398,7 +398,7 @@ uniform vec4 uCorAmbiente;
 uniform vec4 uCorDifusao;
 uniform vec4 uCorEspecular;
 uniform float uAlfaEsp;
-uniform sampler2D uTextureMap; // NEW: texture sampler
+uniform sampler2D uTextureMap;
 
 void main() {
     vec3 normalV = normalize(vNormal);
@@ -418,7 +418,6 @@ void main() {
     
     vec4 especular = ks * uCorEspecular;
 
-    // NEW: sample the texture and multiply with lighting
     vec4 texColor = texture(uTextureMap, vTexCoord);
     corSaida = (difusao + especular + uCorAmbiente) * texColor;
     corSaida.a = 1.0;
