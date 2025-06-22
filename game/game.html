@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
     <title>Geometry Run</title>
@@ -7,6 +7,7 @@
     
     <script src="https://www.ime.usp.br/~hitoshi/mac0420/libs/macWebglUtils.js"></script>
     <script src="https://www.ime.usp.br/~hitoshi/mac0420/libs/MVnew.js"></script>
+    <script src="props.js"></script>
     <script src="game.js"></script>
     
 </head>
@@ -17,8 +18,19 @@
         <button id="play-button" class="menu-button">Play</button>
         <button id="exit-button" class="menu-button">Exit</button>
     </div>
-    
+
+    <div id="pause-overlay" style="display: none;">
+        <h1>Paused</h1>
+    </div>
+
+    <div id="game-over-overlay" style="display: none;">
+        <h1>Game Over</h1>
+        <h2 id="final-score"></h2>
+        <button id="restart-button" class="menu-button">Restart</button>
+        <button id="main-menu-button" class="menu-button">Main Menu</button>
+    </div>
     <div id="instructions" class="instructions">Press SPACE to Jump</div>
+    <div id="score-display">Coins: 0</div>
     
     <canvas id="glcanvas"></canvas>
 </body>
