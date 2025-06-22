@@ -1,26 +1,22 @@
 "use strict";
 
-import { Espinho, Cilindro } from './props.js';
-// ==================================================================
-// Os valores a seguir são usados apenas uma vez quando o programa
-// é carregado. Modifique esses valores para ver seus efeitos.
+import { Cilindro, Cubo, configureTexturaDaURL } from './props.js';
 
-// Propriedades da fonte de luz
 const LUZ = {
-  pos: vec4(0.0, 3.0, 0.0, 1.0), // posição
-  amb: vec4(0.0, 0.6, 0.6, 1.0), // ambiente
-  dif: vec4(1.0, 1.0, 0.0, 1.0), // difusão
-  esp: vec4(1.0, 1.0, 1.0, 1.0), // especular
+  pos: vec4(0.0, 3.0, 0.0, 1.0),
+  amb: vec4(0.3, 0.7, 0.7, 1.0),
+  dif: vec4(1.0, 1.0, 0.0, 1.0),
+  esp: vec4(1.0, 1.0, 1.0, 1.0),
 };
 
-// Propriedades do material
+// propriedades do material
 const MAT = {
   amb: vec4(0.8, 0.8, 0.8, 1.0),
   dif: vec4(1.0, 0.5, 1.0, 1.0),
-  alfa: 50.0,    // brilho ou shininess
+  alfa: 100.0,    // brilho ou shininess
 };
 
-// Camera
+// camera
 const CAMERA_RAIO = 3;  // a camera se move usando as setas do teclado
 const CAMERA_STEP = 10; // passo de variação do angulo
 // perspectiva
@@ -29,21 +25,12 @@ const ASPECT = 1;
 const NEAR = 0.1;
 const FAR = 50;
 
-// ==================================================================
-// constantes globais
-const FUNDO = [0.0, 0.0, 0.0, 1.0];  // fundo preto
-
-// ==================================================================
-// Os valores a seguir são usados apenas uma vez quando o programa
-// é carregado. Modifique esses valores para ver seus efeitos.
+const FUNDO = [0.0, 0.8, 0.0, 1.0];  // fundo preto
 
 // calcula a matriz de transformação da camera, apenas 1 vez
 var eye = vec3(2, 2, 0);
 const at = vec3(0, 0, 0);
 const up = vec3(0, 1, 0);
-
-// ==================================================================
-// constantes globais
 
 const EIXO_X_IND = 0;
 const EIXO_Y_IND = 1;
@@ -52,63 +39,55 @@ const EIXO_X = vec3(1, 0, 0);
 const EIXO_Y = vec3(0, 1, 0);
 const EIXO_Z = vec3(0, 0, 1);
 
-// ==================================================================
-// variáveis globais
-// as strings com os código dos shaders também são globais, estão 
-// no final do arquivo.
-
 var gl;        // webgl2
 var gCanvas;   // canvas
 
-// objeto a ser renderizado
-var gEspinho;
+// objetos a serem renderizados
 var gCilindro;
+var gCubo;
 
-// guarda coisas do shader
 var gShader = {
   aTheta: null,
 };
 
-// guarda coisas da interface e contexto do programa
 var gCtx = {
   view: mat4(),     // view matrix, inicialmente identidade
   perspective: mat4(), // projection matrix
   camTheta: [0, 0], // ângulo da câmera
 };
 
-// ==================================================================
-// chama a main quando terminar de carregar a janela
+const STEVE_HEAD = "https://media.discordapp.net/attachments/1376661148958589121/1386357210401083514/8578bfd439ef6ee41e103ae82b561986.jpg?ex=68596944&is=685817c4&hm=92fd1d37afc1d28c76caba3eaba1712e4e8c908322503aec4582c5f2810448c1&=&format=webp";
+const LEAVES = "https://media.discordapp.net/attachments/1376661148958589121/1386358135198973984/texture_leaves_by_kuschelirmel_stock_djtlyu-fullview.jpg?ex=68596a20&is=685818a0&hm=fc0c9a920f04d2f0b48c9ae412d4d03e3b4a8bdd1f0a4242779428a33cf0ed4e&=&format=webp";
+const urls = [LEAVES, STEVE_HEAD];
+const textures = [null, null];
+
 window.onload = main;
 
-/**
- * programa principal.
- */
 function main() {
-  // ambiente
   gCanvas = document.getElementById("glcanvas");
   gl = gCanvas.getContext('webgl2');
   if (!gl) alert("Vixe! Não achei WebGL 2.0 aqui :-(");
 
   console.log("Canvas: ", gCanvas.width, gCanvas.height);
 
-  // interface
   crieInterface();
 
-  // objeto
-  gEspinho = new Espinho(6);
-  gEspinho.init();
-  gCilindro = new Cilindro(5);
+  // objetos
+  gCilindro = new Cilindro(6);
   gCilindro.init();
+  gCubo = new Cubo();
+  gCubo.init();
 
-  // Inicializações feitas apenas 1 vez
+  // escolha o URL de cada textura
+  textures[0] = configureTexturaDaURL(gl, urls[0]);
+  textures[1] = configureTexturaDaURL(gl, urls[1]);
+
   gl.viewport(0, 0, gCanvas.width, gCanvas.height);
   gl.clearColor(FUNDO[0], FUNDO[1], FUNDO[2], FUNDO[3]);
   gl.enable(gl.DEPTH_TEST);
 
-  // shaders
   crieShaders();
 
-  // finalmente...
   render();
 
 }
@@ -131,26 +110,25 @@ function callbackKeyDown(event) {
   console.log("Ângulo da câmera: ", gCtx.camTheta);
 }
 
-// ==================================================================
 /**
- * Cria e configura os elementos da interface e funções de callback
+ * cria e configura os elementos da interface e funções de callback
  */
 function crieInterface() {
   document.getElementById("xButton").onclick = function () {
-    gEspinho.axis = EIXO_X_IND;
-    gCilindro.axis = EIXO_Y_IND;
+    gCilindro.axis = EIXO_X_IND;
+    gCubo.axis = EIXO_Y_IND;
   };
   document.getElementById("yButton").onclick = function () {
-    gEspinho.axis = EIXO_Y_IND;
-    gCilindro.axis = EIXO_Z_IND;
+    gCilindro.axis = EIXO_Y_IND;
+    gCubo.axis = EIXO_Z_IND;
   };
   document.getElementById("zButton").onclick = function () {
-    gEspinho.axis = EIXO_Z_IND;
-    gCilindro.axis = EIXO_X_IND;
+    gCilindro.axis = EIXO_Z_IND;
+    gCubo.axis = EIXO_X_IND;
   };
   document.getElementById("pButton").onclick = function () {
-    gEspinho.rodando = !gEspinho.rodando;
     gCilindro.rodando = !gCilindro.rodando;
+    gCubo.rodando = !gCubo.rodando;
   };
   document.getElementById("alfaSlider").onchange = function (e) {
     gCtx.alfaEspecular = e.target.value;
@@ -163,7 +141,6 @@ function crieInterface() {
   window.onkeydown = callbackKeyDown;
 }
 
-// ==================================================================
 /**
  * cria e configura os shaders
  */
@@ -171,28 +148,6 @@ function crieShaders() {
   // cria o programa
   gShader.program = makeProgram(gl, gVertexShaderSrc, gFragmentShaderSrc);
   gl.useProgram(gShader.program);
-
-  // VAO para Espinho
-  gShader.EspinhoVAO = gl.createVertexArray();
-  gl.bindVertexArray(gShader.EspinhoVAO);
-
-  // buffer das normais do Espinho
-  var bufNormaisEspinho = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, bufNormaisEspinho);
-  gl.bufferData(gl.ARRAY_BUFFER, flatten(gEspinho.nor), gl.STATIC_DRAW);
-
-  var aNormal = gl.getAttribLocation(gShader.program, "aNormal");
-  gl.vertexAttribPointer(aNormal, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(aNormal);
-
-  // buffer dos vértices do Espinho
-  var bufVerticesEspinho = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, bufVerticesEspinho);
-  gl.bufferData(gl.ARRAY_BUFFER, flatten(gEspinho.pos), gl.STATIC_DRAW);
-
-  var aPosition = gl.getAttribLocation(gShader.program, "aPosition");
-  gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(aPosition);
 
   // VAO para Cilindro
   gShader.CilindroVAO = gl.createVertexArray();
@@ -203,6 +158,7 @@ function crieShaders() {
   gl.bindBuffer(gl.ARRAY_BUFFER, bufNormaisCilindro);
   gl.bufferData(gl.ARRAY_BUFFER, flatten(gCilindro.nor), gl.STATIC_DRAW);
 
+  var aNormal = gl.getAttribLocation(gShader.program, "aNormal");
   gl.vertexAttribPointer(aNormal, 3, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(aNormal);
 
@@ -211,8 +167,49 @@ function crieShaders() {
   gl.bindBuffer(gl.ARRAY_BUFFER, bufVerticesCilindro);
   gl.bufferData(gl.ARRAY_BUFFER, flatten(gCilindro.pos), gl.STATIC_DRAW);
 
+  var aPosition = gl.getAttribLocation(gShader.program, "aPosition");
   gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(aPosition);
+
+  // textura para Cilindro
+  var bufTexturaCilindro = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufTexturaCilindro);
+  gl.bufferData(gl.ARRAY_BUFFER, flatten(gCilindro.tex), gl.STATIC_DRAW);
+
+  var aTexCoordCilindro = gl.getAttribLocation(gShader.program, "aTexCoord");
+  gl.vertexAttribPointer(aTexCoordCilindro, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(aTexCoordCilindro);
+  gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+
+  // VAO para Cubo
+  gShader.CuboVAO = gl.createVertexArray();
+  gl.bindVertexArray(gShader.CuboVAO);
+
+  // buffer das normais do Cubo
+  var bufNormaisCubo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufNormaisCubo);
+  gl.bufferData(gl.ARRAY_BUFFER, flatten(gCubo.nor), gl.STATIC_DRAW);
+
+  gl.vertexAttribPointer(aNormal, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(aNormal);
+
+  // buffer dos vértices do Cubo
+  var bufVerticesCubo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufVerticesCubo);
+  gl.bufferData(gl.ARRAY_BUFFER, flatten(gCubo.pos), gl.STATIC_DRAW);
+
+  gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(aPosition);
+
+  // textura
+  var bufTextura = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufTextura);
+  gl.bufferData(gl.ARRAY_BUFFER, flatten(gCubo.tex), gl.STATIC_DRAW);
+
+  var aTexCoord = gl.getAttribLocation(gShader.program, "aTexCoord");
+  gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(aTexCoord);
+  gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
 
   // resolve os uniforms
   gShader.uModel = gl.getUniformLocation(gShader.program, "uModel");
@@ -248,51 +245,11 @@ function crieShaders() {
 
 // ==================================================================
 /**
- * Usa o shader para desenhar.
- * Assume que os dados já foram carregados e são estáticos.
+ * usa o shader para desenhar.
+ * assume que os dados já foram carregados e são estáticos.
  */
 function render() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-  gl.bindVertexArray(gShader.EspinhoVAO);
-
-  eye = vec3(CAMERA_RAIO * Math.sin(gCtx.camTheta[0]) * Math.cos(gCtx.camTheta[1]),
-              CAMERA_RAIO * Math.sin(gCtx.camTheta[1]),
-              CAMERA_RAIO * Math.cos(gCtx.camTheta[0]) * Math.cos(gCtx.camTheta[1]));
-  gCtx.view = lookAt(eye, at, up);
-  gl.uniformMatrix4fv(gShader.uView, false, flatten(gCtx.view));
-
-  // modelo muda a cada frame da animação
-  if (gEspinho.rodando) gEspinho.theta[gEspinho.axis] += 2.0;
-
-  let model = mat4();
-
-  // primeiro, escalo para 0.5 
-  model = mult(model, scale(0.5, 0.5, 0.5));
-
-  if (1) {
-    model = mult(model, rotate(-gEspinho.theta[EIXO_X_IND], EIXO_X));
-    model = mult(model, rotate(-gEspinho.theta[EIXO_Y_IND], EIXO_Y));
-    model = mult(model, rotate(-gEspinho.theta[EIXO_Z_IND], EIXO_Z));
-  }
-  else {
-    let rx = rotateX(gEspinho.theta[EIXO_X_IND]);
-    let ry = rotateY(gEspinho.theta[EIXO_Y_IND]);
-    let rz = rotateZ(gEspinho.theta[EIXO_Z_IND]);
-    model = mult(rz, mult(ry, rx));
-  }
-
-  // por fim, translado para 0.25, 0.25, 0.25
-  model = mult(model, translate(0.5, 0.5, 0.5));
-  
-  let modelView = mult(gCtx.view, model);
-  let modelViewInv = inverse(modelView);
-  let modelViewInvTrans = transpose(modelViewInv);
-
-  gl.uniformMatrix4fv(gShader.uModel, false, flatten(model));
-  gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(modelViewInvTrans));
-
-  gl.drawArrays(gl.TRIANGLES, 0, gEspinho.np);
 
   gl.bindVertexArray(gShader.CilindroVAO);
 
@@ -305,7 +262,7 @@ function render() {
   // modelo muda a cada frame da animação
   if (gCilindro.rodando) gCilindro.theta[gCilindro.axis] += 2.0;
 
-  model = mat4();
+  let model = mat4();
 
   // primeiro, escalo para 0.5 
   model = mult(model, scale(0.5, 0.5, 0.5));
@@ -322,8 +279,58 @@ function render() {
     model = mult(rz, mult(ry, rx));
   }
 
-  // por fim, translado para -0.5, -0.5, -0.5
-  model = mult(model, translate(-0.5, -0.5, -0.5));
+  // por fim, translado para 1, 1, 1
+  model = mult(model, translate(1, 1, 1));
+
+  // IMPORTANTE: é necessário ativar cada textura durante o render para permitir múltiplas texturas sem precisar de uma imagem única
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textures[0]);
+  gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+  
+  let modelView = mult(gCtx.view, model);
+  let modelViewInv = inverse(modelView);
+  let modelViewInvTrans = transpose(modelViewInv);
+
+  gl.uniformMatrix4fv(gShader.uModel, false, flatten(model));
+  gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(modelViewInvTrans));
+
+  gl.drawArrays(gl.TRIANGLES, 0, gCilindro.np);
+
+  gl.bindVertexArray(gShader.CuboVAO);
+
+  eye = vec3(CAMERA_RAIO * Math.sin(gCtx.camTheta[0]) * Math.cos(gCtx.camTheta[1]),
+              CAMERA_RAIO * Math.sin(gCtx.camTheta[1]),
+              CAMERA_RAIO * Math.cos(gCtx.camTheta[0]) * Math.cos(gCtx.camTheta[1]));
+  gCtx.view = lookAt(eye, at, up);
+  gl.uniformMatrix4fv(gShader.uView, false, flatten(gCtx.view));
+
+  // modelo muda a cada frame da animação
+  if (gCubo.rodando) gCubo.theta[gCubo.axis] += 2.0;
+
+  model = mat4();
+
+  // primeiro, escalo para 0.5 
+  model = mult(model, scale(0.5, 0.5, 0.5));
+
+  if (1) {
+    model = mult(model, rotate(-gCubo.theta[EIXO_X_IND], EIXO_X));
+    model = mult(model, rotate(-gCubo.theta[EIXO_Y_IND], EIXO_Y));
+    model = mult(model, rotate(-gCubo.theta[EIXO_Z_IND], EIXO_Z));
+  }
+  else {
+    let rx = rotateX(gCubo.theta[EIXO_X_IND]);
+    let ry = rotateY(gCubo.theta[EIXO_Y_IND]);
+    let rz = rotateZ(gCubo.theta[EIXO_Z_IND]);
+    model = mult(rz, mult(ry, rx));
+  }
+
+  // por fim, translado para -1, -1, -1
+  model = mult(model, translate(-1, -1, -1));
+
+  // IMPORTANTE: é necessário ativar cada textura durante o render para permitir múltiplas texturas sem precisar de uma imagem única
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textures[1]);
+  gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
   
   modelView = mult(gCtx.view, model);
   modelViewInv = inverse(modelView);
@@ -332,14 +339,14 @@ function render() {
   gl.uniformMatrix4fv(gShader.uModel, false, flatten(model));
   gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(modelViewInvTrans));
 
-  gl.drawArrays(gl.TRIANGLES, 0, gCilindro.np);
+  gl.drawArrays(gl.TRIANGLES, 0, gCubo.np);
 
   window.requestAnimationFrame(render);
 }
 
 
 // ========================================================
-// Código fonte dos shaders em GLSL
+// código fonte dos shaders em GLSL
 // a primeira linha deve conter "#version 300 es"
 // para WebGL 2.0
 
@@ -347,6 +354,7 @@ var gVertexShaderSrc = `#version 300 es
 
 in  vec4 aPosition;
 in  vec3 aNormal;
+in  vec2 aTexCoord; // NEW: texture coordinate attribute
 
 uniform mat4 uModel;
 uniform mat4 uView;
@@ -358,6 +366,7 @@ uniform vec4 uLuzPos;
 out vec3 vNormal;
 out vec3 vLight;
 out vec3 vView;
+out vec2 vTexCoord; // NEW: pass texture coordinate to fragment shader
 
 void main() {
     mat4 modelView = uView * uModel;
@@ -369,6 +378,8 @@ void main() {
 
     vLight = (uView * uLuzPos - pos).xyz;
     vView = -(pos.xyz);
+
+    vTexCoord = aTexCoord; // NEW: pass through
 }
 `;
 
@@ -379,6 +390,7 @@ precision highp float;
 in vec3 vNormal;
 in vec3 vLight;
 in vec3 vView;
+in vec2 vTexCoord; // NEW: receive texture coordinate
 out vec4 corSaida;
 
 // cor = produto luz * material
@@ -386,6 +398,7 @@ uniform vec4 uCorAmbiente;
 uniform vec4 uCorDifusao;
 uniform vec4 uCorEspecular;
 uniform float uAlfaEsp;
+uniform sampler2D uTextureMap; // NEW: texture sampler
 
 void main() {
     vec3 normalV = normalize(vNormal);
@@ -404,7 +417,10 @@ void main() {
     }
     
     vec4 especular = ks * uCorEspecular;
-    corSaida = difusao + especular + uCorAmbiente;    
+
+    // NEW: sample the texture and multiply with lighting
+    vec4 texColor = texture(uTextureMap, vTexCoord);
+    corSaida = (difusao + especular + uCorAmbiente) * texColor;
     corSaida.a = 1.0;
 }
 `;
