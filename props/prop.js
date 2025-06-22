@@ -1,6 +1,6 @@
 "use strict";
 
-import { Cubo, Cilindro } from './props.js';
+import { Espinho, Cilindro } from './props.js';
 // ==================================================================
 // Os valores a seguir são usados apenas uma vez quando o programa
 // é carregado. Modifique esses valores para ver seus efeitos.
@@ -61,8 +61,8 @@ var gl;        // webgl2
 var gCanvas;   // canvas
 
 // objeto a ser renderizado
-var gCubo = new Cubo();
-var gCilindro = new Cilindro();
+var gEspinho;
+var gCilindro;
 
 // guarda coisas do shader
 var gShader = {
@@ -95,7 +95,9 @@ function main() {
   crieInterface();
 
   // objeto
-  gCubo.init();
+  gEspinho = new Espinho(6);
+  gEspinho.init();
+  gCilindro = new Cilindro(5);
   gCilindro.init();
 
   // Inicializações feitas apenas 1 vez
@@ -135,19 +137,19 @@ function callbackKeyDown(event) {
  */
 function crieInterface() {
   document.getElementById("xButton").onclick = function () {
-    gCubo.axis = EIXO_X_IND;
+    gEspinho.axis = EIXO_X_IND;
     gCilindro.axis = EIXO_Y_IND;
   };
   document.getElementById("yButton").onclick = function () {
-    gCubo.axis = EIXO_Y_IND;
+    gEspinho.axis = EIXO_Y_IND;
     gCilindro.axis = EIXO_Z_IND;
   };
   document.getElementById("zButton").onclick = function () {
-    gCubo.axis = EIXO_Z_IND;
+    gEspinho.axis = EIXO_Z_IND;
     gCilindro.axis = EIXO_X_IND;
   };
   document.getElementById("pButton").onclick = function () {
-    gCubo.rodando = !gCubo.rodando;
+    gEspinho.rodando = !gEspinho.rodando;
     gCilindro.rodando = !gCilindro.rodando;
   };
   document.getElementById("alfaSlider").onchange = function (e) {
@@ -170,23 +172,23 @@ function crieShaders() {
   gShader.program = makeProgram(gl, gVertexShaderSrc, gFragmentShaderSrc);
   gl.useProgram(gShader.program);
 
-  // VAO para Cubo
-  gShader.CuboVAO = gl.createVertexArray();
-  gl.bindVertexArray(gShader.CuboVAO);
+  // VAO para Espinho
+  gShader.EspinhoVAO = gl.createVertexArray();
+  gl.bindVertexArray(gShader.EspinhoVAO);
 
-  // buffer das normais do Cubo
-  var bufNormaisCubo = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, bufNormaisCubo);
-  gl.bufferData(gl.ARRAY_BUFFER, flatten(gCubo.nor), gl.STATIC_DRAW);
+  // buffer das normais do Espinho
+  var bufNormaisEspinho = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufNormaisEspinho);
+  gl.bufferData(gl.ARRAY_BUFFER, flatten(gEspinho.nor), gl.STATIC_DRAW);
 
   var aNormal = gl.getAttribLocation(gShader.program, "aNormal");
   gl.vertexAttribPointer(aNormal, 3, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(aNormal);
 
-  // buffer dos vértices do Cubo
-  var bufVerticesCubo = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, bufVerticesCubo);
-  gl.bufferData(gl.ARRAY_BUFFER, flatten(gCubo.pos), gl.STATIC_DRAW);
+  // buffer dos vértices do Espinho
+  var bufVerticesEspinho = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufVerticesEspinho);
+  gl.bufferData(gl.ARRAY_BUFFER, flatten(gEspinho.pos), gl.STATIC_DRAW);
 
   var aPosition = gl.getAttribLocation(gShader.program, "aPosition");
   gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
@@ -252,7 +254,7 @@ function crieShaders() {
 function render() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  gl.bindVertexArray(gShader.CuboVAO);
+  gl.bindVertexArray(gShader.EspinhoVAO);
 
   eye = vec3(CAMERA_RAIO * Math.sin(gCtx.camTheta[0]) * Math.cos(gCtx.camTheta[1]),
               CAMERA_RAIO * Math.sin(gCtx.camTheta[1]),
@@ -261,7 +263,7 @@ function render() {
   gl.uniformMatrix4fv(gShader.uView, false, flatten(gCtx.view));
 
   // modelo muda a cada frame da animação
-  if (gCubo.rodando) gCubo.theta[gCubo.axis] += 2.0;
+  if (gEspinho.rodando) gEspinho.theta[gEspinho.axis] += 2.0;
 
   let model = mat4();
 
@@ -269,14 +271,14 @@ function render() {
   model = mult(model, scale(0.5, 0.5, 0.5));
 
   if (1) {
-    model = mult(model, rotate(-gCubo.theta[EIXO_X_IND], EIXO_X));
-    model = mult(model, rotate(-gCubo.theta[EIXO_Y_IND], EIXO_Y));
-    model = mult(model, rotate(-gCubo.theta[EIXO_Z_IND], EIXO_Z));
+    model = mult(model, rotate(-gEspinho.theta[EIXO_X_IND], EIXO_X));
+    model = mult(model, rotate(-gEspinho.theta[EIXO_Y_IND], EIXO_Y));
+    model = mult(model, rotate(-gEspinho.theta[EIXO_Z_IND], EIXO_Z));
   }
   else {
-    let rx = rotateX(gCubo.theta[EIXO_X_IND]);
-    let ry = rotateY(gCubo.theta[EIXO_Y_IND]);
-    let rz = rotateZ(gCubo.theta[EIXO_Z_IND]);
+    let rx = rotateX(gEspinho.theta[EIXO_X_IND]);
+    let ry = rotateY(gEspinho.theta[EIXO_Y_IND]);
+    let rz = rotateZ(gEspinho.theta[EIXO_Z_IND]);
     model = mult(rz, mult(ry, rx));
   }
 
@@ -290,7 +292,7 @@ function render() {
   gl.uniformMatrix4fv(gShader.uModel, false, flatten(model));
   gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(modelViewInvTrans));
 
-  gl.drawArrays(gl.TRIANGLES, 0, gCubo.np);
+  gl.drawArrays(gl.TRIANGLES, 0, gEspinho.np);
 
   gl.bindVertexArray(gShader.CilindroVAO);
 
