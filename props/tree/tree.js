@@ -33,8 +33,8 @@ export class Arvore{
     gl.drawArrays(gl.TRIANGLES, 0, this.base.np);
 
     // === Leaves ===
-    const leavesScales = [[1.5, 1, 1.5], [1.3, 1, 1.3], [1.1, 0.9, 1.1]];
-    const leafOffsets = [.8, 1.2, 1.6];
+    const leavesScales = [[1.5, 1, 1.5], [1.3, 1, 1.3], [1.1, 1, 1.1]];
+    const leafOffsets = [.8, 1.1, 1.4];
 
     for (let i = 0; i < this.leaves.length; ++i) {
       gl.bindVertexArray(gShader.ArvoreVAOs[i + 1]);
