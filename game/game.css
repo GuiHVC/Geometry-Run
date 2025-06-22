@@ -11,7 +11,7 @@ canvas {
     height: 100vh; 
 }
 
-#menu-overlay {
+#menu-overlay, #pause-overlay, #game-over-overlay {
     position: absolute;
     top: 0;
     left: 0;
@@ -25,11 +25,19 @@ canvas {
     z-index: 10;
 }
 
-#menu-overlay h1 {
+#menu-overlay h1, #pause-overlay h1, #game-over-overlay h1 {
     color: #fff;
     text-shadow: 0 0 10px #fff, 0 0 20px #ff00ff, 0 0 30px #ff00ff;
     font-size: 4em;
     margin-bottom: 50px;
+}
+
+#game-over-overlay h2 {
+    color: #ffd700;
+    font-size: 2em;
+    margin-top: -30px;
+    margin-bottom: 30px;
+    text-shadow: 0 0 8px #ffd700;
 }
 
 .menu-button {
@@ -64,5 +72,15 @@ canvas {
     border-radius: 10px;
     pointer-events: none;
     transition: opacity 0.5s;
-    opacity: 0; /* Initially hidden */
+    opacity: 0;
+}
+
+#score-display {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: #ffd700;
+    font-size: 1.5em;
+    text-shadow: 1px 1px 2px #000;
+    z-index: 10;
 }
