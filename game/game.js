@@ -1,12 +1,12 @@
 "use strict";
 
 // Import geometry classes from the external props.js file
+// Note: Ensure the path to 'props.js' is correct for your project structure.
+import { Cilindro, Cubo, Espinho, Plano } from '../props/props.js';
 
 // ========================================================
 // GLOBAL VARIABLES & CONSTANTS
 // ========================================================
-
-import { Cilindro, Cubo, Espinho, Plano, configureTextura } from '../props/props.js';
 
 var gl;
 var gCanvas;
@@ -22,11 +22,10 @@ var gSea = {};
 var gScore = {
     coins: 0
 };
+
+// Game state management
 var gState = {
     speed: 0.3,
-    sideSpeed: 0.2,
-    moveLeft: false,
-    moveRight: false,
     isJumping: false,
     yVelocity: 0,
     gravity: -0.01,
@@ -36,9 +35,14 @@ var gState = {
     startTime: 0,
     timeWhenPaused: 0,
     pausedDuration: 0,
-    current: 'menu' // 'menu', 'playing', 'paused', 'gameOver'
+    current: 'menu', // 'menu', 'playing', 'paused', 'gameOver'
+    currentLane: 1   // 0: left, 1: center, 2: right
 };
 
+// Define the X-coordinates for the three lanes
+const LANE_POSITIONS = [-3.5, 0, 3.5];
+
+// Lighting properties
 const LUZ = {
     pos: vec4(5.0, 10.0, 7.0, 1.0),
     amb: vec4(0.1, 0.0, 0.2, 1.0),
@@ -72,18 +76,31 @@ function main() {
 
 function setupEventListeners() {
     window.addEventListener('keydown', (event) => {
-        if (event.code === 'Space' && gState.current === 'playing' && !gState.isJumping) {
-            gState.isJumping = true;
-            gState.yVelocity = gState.jumpStrength;
-        }
+        // Handle global key presses like pausing
         if (event.key === 'Escape') {
             togglePause();
         }
-        if (event.code === 'ArrowLeft' || event.key === 'a' || event.key === 'A') {
-            gState.moveLeft = true;
+
+        // The following controls only work when the game is actively playing
+        if (gState.current !== 'playing') return;
+
+        if (event.code === 'Space' && !gState.isJumping) {
+            gState.isJumping = true;
+            gState.yVelocity = gState.jumpStrength;
         }
-        if (event.code === 'ArrowRight' || event.key === 'd' || event.key === 'D') {
-            gState.moveRight = true;
+        
+        // Move right (D key)
+        if (event.key === 'd' || event.key === 'D') {
+            if (gState.currentLane < 2) { // Cannot move right if in the rightmost lane
+                gState.currentLane++;
+            }
+        }
+        
+        // Move left (A key)
+        if (event.key === 'a' || event.key === 'A') {
+            if (gState.currentLane > 0) { // Cannot move left if in the leftmost lane
+                gState.currentLane--;
+            }
         }
     });
 
@@ -104,16 +121,14 @@ function setupEventListeners() {
     document.getElementById('restart-button').onclick = () => {
         document.getElementById('game-over-overlay').style.display = 'none';
         resetGame();
+        gState.current = 'playing'; // Set state to playing after reset
     };
     
     document.getElementById('main-menu-button').onclick = () => {
         document.getElementById('game-over-overlay').style.display = 'none';
         document.getElementById('menu-overlay').style.display = 'flex';
-
-        gPlayer.pos = vec3(0, gState.groundY, 0);
-        gCtx.cameraOffset = vec3(0, 4, 8);
-
-        gState.current = 'menu';
+        resetGame(); // Reset the game elements
+        gState.current = 'menu'; // Set state to menu
     };
 }
 
@@ -134,35 +149,42 @@ function startGame() {
     document.getElementById('instructions').style.opacity = '1';
     document.getElementById('score-display').style.display = 'block';
     resetGame();
+    gState.current = 'playing';
 }
 
 function resetGame() {
-
-    gPlayer.pos = vec3(0, gState.groundY, 0);
+    gState.currentLane = 1; // Reset player to the center lane
+    
+    gPlayer.pos = vec3(LANE_POSITIONS[gState.currentLane], gState.groundY, 0);
     gPlayer.rotation = 0;
+    
+    // Always reset the camera offset to its default position when a game is reset
     gCtx.cameraOffset = vec3(0, 4, 8);
 
+    // Reposition obstacles into one of the three lanes
     for (let i = 0; i < gObstacles.length; i++) {
-        gObstacles[i].pos = vec3((Math.random() - 0.5) * 8, 0.5, -20 - (i * 15));
+        const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
+        gObstacles[i].pos = vec3(randomLane, 0.5, -20 - (i * 15));
     }
     
+    // Reposition coins into one of the three lanes
     for (let i = 0; i < gCoins.length; i++) {
         const coin = gCoins[i];
-        coin.pos = vec3((Math.random() - 0.5) * 8, coin.baseY, -30 - (i * 20));
+        const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
+        coin.pos = vec3(randomLane, coin.baseY, -30 - (i * 20));
     }
 
     gState.isJumping = false;
     gState.yVelocity = 0;
     gState.startTime = Date.now();
     gState.pausedDuration = 0;
-    gState.current = 'playing';
     
     document.getElementById('score-display').innerText = `Coins: ${gScore.coins}`;
-
     const instructions = document.getElementById('instructions');
     instructions.style.display = 'block';
     document.getElementById('pause-overlay').style.display = 'none';
 }
+
 
 function setupShaders() {
     gShader.program = makeProgram(gl, gVertexShaderSrc, gFragmentShaderSrc);
@@ -199,7 +221,7 @@ function createGameObjects() {
     gPlayer = {
         geom: new Cubo(),
         mat: makeMaterial(vec4(1.0, 0.2, 0.8, 1.0), vec4(1.0, 0.2, 0.8, 1.0)),
-        pos: vec3(0, gState.groundY, 0),
+        pos: vec3(LANE_POSITIONS[gState.currentLane], gState.groundY, 0),
         scale: vec3(1.5, 1.5, 1.5),
         rotation: 0
     };
@@ -219,10 +241,11 @@ function createGameObjects() {
     for (let i = 0; i < 30; i++) {
         const spikeGeom = new Espinho();
         spikeGeom.init();
+        const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
         gObstacles.push({
             geom: spikeGeom,
             mat: obstacleMat,
-            pos: vec3((Math.random() - 0.5) * 8, 0.5, -20 - (i * 15)),
+            pos: vec3(randomLane, 0.5, -20 - (i * 15)),
             scale: vec3(1, 1, 1),
             rotation: 0
         });
@@ -234,11 +257,12 @@ function createGameObjects() {
         const coinGeom = new Cilindro(6);
         coinGeom.init();
         const baseY = gState.groundY + 0.5;
+        const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
         gCoins.push({
             geom: coinGeom,
             mat: coinMat,
             baseY: baseY,
-            pos: vec3((Math.random() - 0.5) * 8, baseY, -30 - (i * 20)),
+            pos: vec3(randomLane, baseY, -30 - (i * 20)),
             scale: vec3(0.5, 0.1, 0.5),
             rotation: 0,
             rotationAxis: 'z'
@@ -293,17 +317,15 @@ function update() {
         return;
     }
 
-    if (gState.moveLeft) {
-        gPlayer.pos[0] -= gState.sideSpeed;
-        gState.moveLeft = false;
-    }
-    if (gState.moveRight) {
-        gPlayer.pos[0] += gState.sideSpeed;
-        gState.moveRight = false;
-    }
+    // Smoothly move player to the target lane
+    const targetX = LANE_POSITIONS[gState.currentLane];
+    const lerpSpeed = 0.25; // Controls how fast the player switches lanes
+    gPlayer.pos[0] += (targetX - gPlayer.pos[0]) * lerpSpeed;
     
+    // Move player forward continuously
     gPlayer.pos[2] -= gState.speed;
 
+    // Handle jumping physics
     if (gState.isJumping) {
         gPlayer.pos[1] += gState.yVelocity;
         gState.yVelocity += gState.gravity;
@@ -317,23 +339,24 @@ function update() {
         }
     }
     
+    // Recycle obstacles
     for (const obstacle of gObstacles) {
         if (obstacle.pos[2] > gPlayer.pos[2] + gCtx.cameraOffset[2]) {
             obstacle.pos[2] -= gObstacles.length * 15;
-            obstacle.pos[0] = (Math.random() - 0.5) * 8;
+            obstacle.pos[0] = LANE_POSITIONS[Math.floor(Math.random() * 3)];
         }
     }
     
+    // Animate and recycle coins
     const floatAmplitude = 0.25;
     const floatFrequency = 3.0;
     for (const coin of gCoins) {
         coin.rotation += 3;
-
         coin.pos[1] = coin.baseY + Math.sin(gState.time * floatFrequency + coin.pos[2]) * floatAmplitude;
 
         if (coin.pos[2] > gPlayer.pos[2] + gCtx.cameraOffset[2]) {
             coin.pos[2] -= gCoins.length * 20;
-            coin.pos[0] = (Math.random() - 0.5) * 8;
+            coin.pos[0] = LANE_POSITIONS[Math.floor(Math.random() * 3)];
         }
     }
 
@@ -353,13 +376,14 @@ function checkCollisions() {
     const playerBox = getBoundingBox(gPlayer);
     for (const obstacle of gObstacles) {
         const obstacleBox = getBoundingBox(obstacle);
+        // AABB collision detection
         if (playerBox.max[0] > obstacleBox.min[0] && playerBox.min[0] < obstacleBox.max[0] &&
             playerBox.max[1] > obstacleBox.min[1] && playerBox.min[1] < obstacleBox.max[1] &&
             playerBox.max[2] > obstacleBox.min[2] && playerBox.min[2] < obstacleBox.max[2]) {
             
             gState.current = 'gameOver';
             document.getElementById('instructions').style.display = 'none';
-            document.getElementById('final-score').innerText = `You have ${gScore.coins} coins!`;
+            document.getElementById('final-score').innerText = `You collected ${gScore.coins} coins!`;
             document.getElementById('game-over-overlay').style.display = 'flex';
             break; 
         }
@@ -385,22 +409,14 @@ function checkCoinCollisions() {
             gScore.coins++;
             document.getElementById('score-display').innerText = `Coins: ${gScore.coins}`;
             
+            // Move the coin far away to "collect" it
             coin.pos[2] -= gCoins.length * 20; 
         }
     }
 }
 
 function render() {
-    if (gState.current !== 'menu') {
-        update();
-    } else {
-        gState.time = (Date.now() - gState.startTime - gState.pausedDuration) / 1000.0;
-        const rotationMatrix = rotateY(0.2);
-        const offsetVec4 = vec4(gCtx.cameraOffset[0], gCtx.cameraOffset[1], gCtx.cameraOffset[2], 0);
-        const rotatedOffset = mult(rotationMatrix, offsetVec4);
-        gCtx.cameraOffset = vec3(rotatedOffset[0], rotatedOffset[1], rotatedOffset[2]);
-        gPlayer.rotation += 0.5;
-    }
+    update();
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -451,7 +467,7 @@ function render() {
         drawObject(gPlayer, gShader.cubeVao);
         gFloor.pos[2] = gPlayer.pos[2];
         drawObject(gFloor, gShader.cubeVao);
-        const maxDrawDistance = 80; // não desenha objetos longe demais
+        const maxDrawDistance = 80; // Culling distance
         gObstacles.forEach(obs => {
             if (Math.abs(obs.pos[2] - gPlayer.pos[2]) < maxDrawDistance) {
                 drawObject(obs, gShader.spikeVao);
@@ -468,6 +484,10 @@ function render() {
 
     requestAnimationFrame(render);
 }
+
+// ========================================================
+// SHADERS
+// ========================================================
 
 const gVertexShaderSrc = `#version 300 es
     in vec4 aPosition;
@@ -489,6 +509,7 @@ const gVertexShaderSrc = `#version 300 es
         vec4 modifiedPos = aPosition;
 
         if (uIsSea) {
+            // Only animate waves outside the main path
             if (worldPos.x < -uRoadWidth / 2.0 || worldPos.x > uRoadWidth / 2.0) {
                 float wave1 = 0.8 * sin(worldPos.x * 0.5 + uTime * 2.0);
                 float wave2 = 0.4 * sin(worldPos.z * 0.8 + uTime * 3.0);
