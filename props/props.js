@@ -60,16 +60,16 @@ export class Cubo {
       vec3(-0.5, -0.5, -0.5), vec3(0.5, -0.5, -0.5), vec3(0.5, 0.5, -0.5), vec3(-0.5, 0.5, -0.5),
       vec3(-0.5, -0.5, 0.5), vec3(0.5, -0.5, 0.5), vec3(0.5, 0.5, 0.5), vec3(-0.5, 0.5, 0.5)
     ];
-    tri(this.pos, this.nor, this.tex, vertices, 0, 1, 2, CUBO);
-    tri(this.pos, this.nor, this.tex, vertices, 0, 2, 3, CUBO);
+    tri(this.pos, this.nor, this.tex, vertices, 0, 2, 1, CUBO);
+    tri(this.pos, this.nor, this.tex, vertices, 0, 3, 2, CUBO);
     tri(this.pos, this.nor, this.tex, vertices, 4, 5, 6, CUBO);
     tri(this.pos, this.nor, this.tex, vertices, 4, 6, 7, CUBO);
     tri(this.pos, this.nor, this.tex, vertices, 0, 1, 5, CUBO);
     tri(this.pos, this.nor, this.tex, vertices, 0, 5, 4, CUBO);
     tri(this.pos, this.nor, this.tex, vertices, 2, 3, 7, CUBO);
     tri(this.pos, this.nor, this.tex, vertices, 2, 7, 6, CUBO);
-    tri(this.pos, this.nor, this.tex, vertices, 0, 3, 7, CUBO);
-    tri(this.pos, this.nor, this.tex, vertices, 0, 7, 4, CUBO);
+    tri(this.pos, this.nor, this.tex, vertices, 0, 7, 3, CUBO); 
+    tri(this.pos, this.nor, this.tex, vertices, 0, 4, 7, CUBO); 
     tri(this.pos, this.nor, this.tex, vertices, 1, 2, 6, CUBO);
     tri(this.pos, this.nor, this.tex, vertices, 1, 6, 5, CUBO);
   }
@@ -110,10 +110,95 @@ export class Cilindro {
       let a = i;
       let b = (i + 1) % n;
       tri(this.pos, this.nor, this.tex, [base[a], base[b], bottom], 0, 1, 2, CILINDRO);
-      tri(this.pos, this.nor, this.tex, [base[a + n], base[b + n], apex], 0, 1, 2, CILINDRO);
+      tri(this.pos, this.nor, this.tex, [base[a + n], apex, base[b + n]], 0, 1, 2, CILINDRO);
       tri(this.pos, this.nor, this.tex, [base[a], base[b + n], base[b]], 0, 1, 2, CILINDRO);
       tri(this.pos, this.nor, this.tex, [base[a], base[a + n], base[b + n]], 0, 1, 2, CILINDRO);
     }
+    this.np = this.pos.length;
+  }
+}
+
+export class Plano {
+    constructor(width, depth, divisions) {
+        this.pos = [];
+        this.nor = [];
+        this.np = 0;
+        this.init(width, depth, divisions);
+    }
+
+    init(width, depth, divisions) {
+        const vertices = [];
+        for (let i = 0; i <= divisions; i++) {
+            for (let j = 0; j <= divisions; j++) {
+                const x = (j / divisions - 0.5) * width;
+                const z = (i / divisions - 0.5) * depth;
+                vertices.push(vec3(x, 0, z));
+            }
+        }
+
+        const indices = [];
+        for (let i = 0; i < divisions; i++) {
+            for (let j = 0; j < divisions; j++) {
+                const a = j + (i * (divisions + 1));
+                const b = a + 1;
+                const c = j + ((i + 1) * (divisions + 1));
+                const d = c + 1;
+                indices.push(a, b, c);
+                indices.push(c, b, d);
+            }
+        }
+        
+        for (let index of indices) {
+            this.pos.push(vertices[index]);
+            this.nor.push(vec3(0, 1, 0));
+        }
+        this.np = indices.length;
+    }
+  }
+  
+export class Esfera {
+  constructor(ndivs = 2) {
+    const TEMPLATE = [
+      vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0),
+      vec3(-1.0, 0.0, 0.0), vec3(0.0, -1.0, 0.0), vec3(0.0, 0.0, -1.0),
+    ];
+
+    this.pos = [];
+    this.nor = [];
+    this.tex = [];
+    this.axis = 2;
+    this.theta = vec3(0, 0, 0);
+    this.rotating = true;
+    this.position = vec3(0, 0, 0);
+    this.velrotation = 0;
+    this.veltranslation = 0;
+    this.scale = 1;
+    this.color = vec4(sorteieCorRGBA());
+
+    this.divideTriangle = (a, b, c, depth) => {
+      if (depth <= 0) {
+        tri(this.pos, this.nor, this.tex, [a, b, c], 0, 1, 2, ESFERA);
+        return;
+      }
+      const ab = normalize(mix(a, b, 0.5));
+      const ac = normalize(mix(a, c, 0.5));
+      const bc = normalize(mix(b, c, 0.5));
+      this.divideTriangle(a, ab, ac, depth - 1);
+      this.divideTriangle(b, bc, ab, depth - 1);
+      this.divideTriangle(c, ac, bc, depth - 1);
+      this.divideTriangle(ab, bc, ac, depth - 1);
+    };
+
+    const v = TEMPLATE;
+    this.divideTriangle(v[2], v[0], v[1], ndivs);
+    this.divideTriangle(v[1], v[3], v[2], ndivs);
+    this.divideTriangle(v[1], v[5], v[3], ndivs);
+    this.divideTriangle(v[0], v[5], v[1], ndivs);
+    this.divideTriangle(v[2], v[3], v[4], ndivs);
+    this.divideTriangle(v[0], v[2], v[4], ndivs);
+    this.divideTriangle(v[4], v[5], v[0], ndivs);
+    this.divideTriangle(v[4], v[3], v[5], ndivs);
+
     this.np = this.pos.length;
   }
 }
@@ -207,49 +292,3 @@ export function configureTextura(gl, src) {
 }
 
 
-export class Esfera {
-  constructor(ndivs = 2) {
-    const TEMPLATE = [
-      vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0),
-      vec3(-1.0, 0.0, 0.0), vec3(0.0, -1.0, 0.0), vec3(0.0, 0.0, -1.0),
-    ];
-
-    this.pos = [];
-    this.nor = [];
-    this.tex = [];
-    this.axis = 2;
-    this.theta = vec3(0, 0, 0);
-    this.rotating = true;
-    this.position = vec3(0, 0, 0);
-    this.velrotation = 0;
-    this.veltranslation = 0;
-    this.scale = 1;
-    this.color = vec4(sorteieCorRGBA());
-
-    this.divideTriangle = (a, b, c, depth) => {
-      if (depth <= 0) {
-        tri(this.pos, this.nor, this.tex, [a, b, c], 0, 1, 2, ESFERA);
-        return;
-      }
-      const ab = normalize(mix(a, b, 0.5));
-      const ac = normalize(mix(a, c, 0.5));
-      const bc = normalize(mix(b, c, 0.5));
-      this.divideTriangle(a, ab, ac, depth - 1);
-      this.divideTriangle(b, bc, ab, depth - 1);
-      this.divideTriangle(c, ac, bc, depth - 1);
-      this.divideTriangle(ab, bc, ac, depth - 1);
-    };
-
-    const v = TEMPLATE;
-    this.divideTriangle(v[2], v[0], v[1], ndivs);
-    this.divideTriangle(v[1], v[3], v[2], ndivs);
-    this.divideTriangle(v[1], v[5], v[3], ndivs);
-    this.divideTriangle(v[0], v[5], v[1], ndivs);
-    this.divideTriangle(v[2], v[3], v[4], ndivs);
-    this.divideTriangle(v[0], v[2], v[4], ndivs);
-    this.divideTriangle(v[4], v[5], v[0], ndivs);
-    this.divideTriangle(v[4], v[3], v[5], ndivs);
-
-    this.np = this.pos.length;
-  }
-}

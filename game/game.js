@@ -5,6 +5,9 @@
 // ========================================================
 // GLOBAL VARIABLES & CONSTANTS
 // ========================================================
+
+import { Cilindro, Cubo, Espinho, Plano, configureTextura } from '../props/props.js';
+
 var gl;
 var gCanvas;
 var gShader = {};
@@ -20,7 +23,7 @@ var gScore = {
     coins: 0
 };
 var gState = {
-    speed: 0.1,
+    speed: 0.3,
     sideSpeed: 0.2,
     moveLeft: false,
     moveRight: false,
@@ -100,13 +103,12 @@ function setupEventListeners() {
 
     document.getElementById('restart-button').onclick = () => {
         document.getElementById('game-over-overlay').style.display = 'none';
-        resetGame(false);
+        resetGame();
     };
     
     document.getElementById('main-menu-button').onclick = () => {
         document.getElementById('game-over-overlay').style.display = 'none';
         document.getElementById('menu-overlay').style.display = 'flex';
-        document.getElementById('score-display').style.display = 'none';
 
         gPlayer.pos = vec3(0, gState.groundY, 0);
         gCtx.cameraOffset = vec3(0, 4, 8);
@@ -131,10 +133,10 @@ function startGame() {
     document.getElementById('menu-overlay').style.display = 'none';
     document.getElementById('instructions').style.opacity = '1';
     document.getElementById('score-display').style.display = 'block';
-    resetGame(true);
+    resetGame();
 }
 
-function resetGame(resetScore = true) {
+function resetGame() {
 
     gPlayer.pos = vec3(0, gState.groundY, 0);
     gPlayer.rotation = 0;
@@ -155,9 +157,6 @@ function resetGame(resetScore = true) {
     gState.pausedDuration = 0;
     gState.current = 'playing';
     
-    if (resetScore) {
-        gScore.coins = 0;
-    }
     document.getElementById('score-display').innerText = `Coins: ${gScore.coins}`;
 
     const instructions = document.getElementById('instructions');
@@ -360,7 +359,7 @@ function checkCollisions() {
             
             gState.current = 'gameOver';
             document.getElementById('instructions').style.display = 'none';
-            document.getElementById('final-score').innerText = `You collected ${gScore.coins} coins!`;
+            document.getElementById('final-score').innerText = `You have ${gScore.coins} coins!`;
             document.getElementById('game-over-overlay').style.display = 'flex';
             break; 
         }
