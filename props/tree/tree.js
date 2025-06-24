@@ -128,3 +128,98 @@ export class ArvoreRedonda{
     }
   };
 };
+
+export class ArvoreComGalhos{
+  constructor() {
+    this.base = new Cilindro(8);
+    this.base.init();
+    this.leaves = [new Esfera(4), new Esfera(4), new Esfera(4)];
+    this.branches = [new Cilindro(8), new Cilindro(8)];
+    for (let branch of this.branches) branch.init();
+    this.axis = 2;
+    this.theta = vec3(0, 0, 0);  // rotação em cada eixo
+    this.rodando = true;        // pausa a animação
+  };
+
+  render(gl, gShader, gCtx, trunkTexture, leafTexture) {
+    if(this.rodando){
+        this.theta[1] += 0.5; // incrementa a rotação
+    };
+
+    let baseModel = mat4();
+    baseModel = mult(baseModel, rotate(this.theta[0], vec3(1, 0, 0)));
+    baseModel = mult(baseModel, rotate(this.theta[1], vec3(0, 1, 0)));
+    baseModel = mult(baseModel, rotate(this.theta[2], vec3(0, 0, 1)));
+    baseModel = mult(baseModel, translate(0, -0.5, 0)); // move a base para baixo
+    
+    gl.bindVertexArray(gShader.ArvoreVAOs[0]);
+    let trunkModel = mult(baseModel, scale(.5, 1.8, .5));
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, trunkTexture);
+    gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+    gl.bindVertexArray(gShader.ArvoreVAOs[0]);
+
+    let modelView = mult(gCtx.view, trunkModel);
+    let modelViewInvTrans = transpose(inverse(modelView));
+    gl.uniformMatrix4fv(gShader.uModel, false, flatten(trunkModel));
+    gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(modelViewInvTrans));
+    gl.drawArrays(gl.TRIANGLES, 0, this.base.np);
+
+    // === Leaves ===
+    const leavesScales = [[0.6, 0.4, 0.6], [0.8, 0.6, 0.8],  [0.5, 0.3, 0.5]];
+    const leafOffsets = [[0, 1.6, -1.2], [0, 2.3, 0], [0, 2.2, 1]]; // x, y, z offsets for each leaf
+
+    for (let i = 0; i < this.leaves.length; ++i) {
+      gl.bindVertexArray(gShader.ArvoreVAOs[i + 1]);
+
+      let leafModel = mat4();
+      leafModel = mult(leafModel, scale(...leavesScales[i]));
+      leafModel = mult(leafModel, translate(...leafOffsets[i]));
+      
+      // Apply baseModel transform to the whole leaf (including position above trunk)
+      leafModel = mult(baseModel, leafModel);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, leafTexture);
+      gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+      gl.bindVertexArray(gShader.ArvoreVAOs[i + 1]);
+
+      let mv = mult(gCtx.view, leafModel);
+      let invT = transpose(inverse(mv));
+      gl.uniformMatrix4fv(gShader.uModel, false, flatten(leafModel));
+      gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(invT));
+      gl.drawArrays(gl.TRIANGLES, 0, this.leaves[i].np);
+    }
+
+    // === Branches === 
+    const branchScales = [[0.1, 0.8, 0.1], [0.1, 0.8, 0.1]];
+    const branchOffsets = [[0, 0.6, -2.2], [0.5, 0.5, 0]]; // x, y, z offsets for each branch
+    const branchRotations = [[45, 0, 0], [-45, 0, 0]]; // rotation angles for each branch
+
+    for (let i = 0; i < this.branches.length; ++i) {
+      gl.bindVertexArray(gShader.ArvoreVAOs[i + 4]);
+
+      let branchModel = mat4();
+      branchModel = mult(branchModel, rotate(branchRotations[i][0], vec3(1, 0, 0)));
+      branchModel = mult(branchModel, rotate(branchRotations[i][1], vec3(0, 1, 0)));
+      branchModel = mult(branchModel, rotate(branchRotations[i][2], vec3(0, 0, 1)));
+      branchModel = mult(branchModel, scale(...branchScales[i]));
+      branchModel = mult(branchModel, translate(...branchOffsets[i]));
+
+      // Apply baseModel transform to the whole branch
+      branchModel = mult(baseModel, branchModel);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, trunkTexture);
+      gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+      gl.bindVertexArray(gShader.ArvoreVAOs[i + 4]);
+
+      let mv = mult(gCtx.view, branchModel);
+      let invT = transpose(inverse(mv));
+      gl.uniformMatrix4fv(gShader.uModel, false, flatten(branchModel));
+      gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(invT));
+      gl.drawArrays(gl.TRIANGLES, 0, this.branches[i].np);
+    }
+  };
+};

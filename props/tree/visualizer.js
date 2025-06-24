@@ -1,6 +1,6 @@
 "use strict";
 
-import { Arvore, ArvoreRedonda } from './tree.js';
+import { Arvore, ArvoreRedonda, ArvoreComGalhos } from './tree.js';
 import { configureTexturaDaURL } from '../props.js';
 
 const TRUNK_TEXTURE = "textures/trunk.png";
@@ -67,7 +67,7 @@ var gl;        // webgl2
 var gCanvas;   // canvas
 
 // objeto a ser renderizado
-var gArvore = new ArvoreRedonda();
+var gArvore = new ArvoreComGalhos();
 
 // guarda coisas do shader
 var gShader = {
@@ -204,7 +204,9 @@ function crieShaders() {
   for(let leaf of gArvore.leaves) {
     gShader.ArvoreVAOs.push(setVAO(leaf));
   };
-
+  for (let branch of gArvore.branches) {
+    gShader.ArvoreVAOs.push(setVAO(branch));
+  }
   // resolve os uniforms
   gShader.uModel = gl.getUniformLocation(gShader.program, "uModel");
   gShader.uView = gl.getUniformLocation(gShader.program, "uView");
