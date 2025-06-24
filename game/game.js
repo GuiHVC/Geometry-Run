@@ -1,6 +1,6 @@
 "use strict";
 
-import { Cilindro, Cubo, Espinho, Plano, Esfera, configureTextura } from '../props/props.js';
+import { Cilindro, Cubo, Espinho, Plano, Esfera, configureTextura, shear } from '../props/props.js';
 
 import { Arvore, ArvoreRedonda, ArvoreComGalhos } from '../props/tree/tree.js';
 
@@ -137,15 +137,19 @@ function setupEventListeners() {
             gState.yVelocity = gState.jumpStrength;
         }
         
-        if (event.key === 'd' || event.key === 'D') {
-            if (gState.currentLane < 2) {
-                gState.currentLane++;
+        if (!gState.isJumping) {
+            // Move right (D key)
+            if (event.key === 'd' || event.key === 'D') {
+                if (gState.currentLane < 2) { // Cannot move right if in the rightmost lane
+                    gState.currentLane++;
+                }
             }
-        }
-        
-        if (event.key === 'a' || event.key === 'A') {
-            if (gState.currentLane > 0) {
-                gState.currentLane--;
+            
+            // Move left (A key)
+            if (event.key === 'a' || event.key === 'A') {
+                if (gState.currentLane > 0) { // Cannot move left if in the leftmost lane
+                    gState.currentLane--;
+                }
             }
         }
     });
@@ -531,8 +535,12 @@ function update() {
     }
 
     const targetX = LANE_POSITIONS[gState.currentLane];
-    const lerpSpeed = 0.25;
+    const lerpSpeed = 0.25; // Lane switch speed
+    const prevX = gPlayer.pos[0];
     gPlayer.pos[0] += (targetX - gPlayer.pos[0]) * lerpSpeed;
+
+    // Shear varies according to how far the player is from the target lane
+    gPlayer.shearAmount = (gPlayer.pos[0] - targetX) * 0.3;
     
     gPlayer.pos[2] -= gState.speed;
 
@@ -647,7 +655,7 @@ function render() {
 
     gl.uniform1f(gShader.uTime, gState.time);
     gl.uniform1f(gShader.uRoadWidth, gFloor.scale[0]);
-    
+
     const drawObject = (obj, vao, isSea = false) => {
         gl.bindVertexArray(vao);
         gl.uniform4fv(gShader.uCorAmb, flatten(obj.mat.amb));
@@ -656,26 +664,43 @@ function render() {
         gl.uniform1f(gShader.uAlfaEsp, obj.mat.alfa);
         gl.uniform1i(gShader.uIsSea, isSea);
 
-        let model = translate(obj.pos[0], obj.pos[1], obj.pos[2]);
 
-        if (obj.rotationAxis) {
-            model = mult(model, rotate(-90, 1, 0, 0));
+        let scaleMatrix = mat4();
+        let shearMatrix = mat4();
+        let rotationMatrix = mat4();
+        let fixedRotationMatrix = mat4(); // Rotação especial para as moedas (cilindro deitado)
+
+        if (obj.scale) {
+            scaleMatrix = scale(obj.scale[0], obj.scale[1], obj.scale[2]);
         }
 
+        if (obj === gPlayer && Math.abs(gPlayer.shearAmount) > 0.001) {
+            shearMatrix = mat4(...shear('yz', gPlayer.shearAmount, 0));
+        }
+
+        if (obj.rotationAxis) {
+            fixedRotationMatrix = rotate(-90, 1, 0, 0);
+        }
         if (obj.rotation || obj.rotation === 0) {
             let axis = vec3(1, 0, 0);
             if (obj.rotationAxis === 'y') axis = vec3(0, 1, 0);
             if (obj.rotationAxis === 'z') axis = vec3(0, 0, 1);
-            model = mult(model, rotate(obj.rotation, axis));
+            rotationMatrix = rotate(obj.rotation, axis);
         }
-        
-        if (obj.scale) model = mult(model, scale(obj.scale[0], obj.scale[1], obj.scale[2]));
+
+        let localMatrix = mult(fixedRotationMatrix, rotationMatrix);
+        localMatrix = mult(localMatrix, shearMatrix);
+        localMatrix = mult(localMatrix, scaleMatrix);
+
+        const translateMatrix = translate(obj.pos[0], obj.pos[1], obj.pos[2]);
+
+        const model = mult(translateMatrix, localMatrix);
 
         gl.uniformMatrix4fv(gShader.uModel, false, flatten(model));
         const modelView = mult(gCtx.view, model);
         gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(transpose(inverse(modelView))));
         gl.drawArrays(gl.TRIANGLES, 0, obj.geom.np);
-    }
+    };
 
     if (gState.current === 'menu' || gState.current === 'shop') {
         drawObject(gPlayer, gShader.cubeVao);
