@@ -353,6 +353,7 @@ export function configureTextura(gl, src) {
   img.crossOrigin = "anonymous";
   img.addEventListener('load', function () {
     gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // para corrigir a orientação da imagem (algumas texturas estavam de cabeça pra baixo)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, img.width, img.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, img);
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);

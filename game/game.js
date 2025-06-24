@@ -15,6 +15,10 @@ var gCtx = {
     cameraOffset: vec3(0, 4, 8)
 };
 var gPlayer = {};
+gPlayer.shearAmount = 0;
+gPlayer.shearVelocity = 0;
+gPlayer.shearTarget = 0;
+gPlayer.prevVelocityX = 0; // we need it to give the cube a spring like effect
 var gFloor = {};
 var gObstacles = [];
 var gCoins = [];
@@ -234,6 +238,9 @@ function resetGame() {
     
     gPlayer.pos = vec3(LANE_POSITIONS[gState.currentLane], gState.groundY, 0);
     gPlayer.rotation = 0;
+    gPlayer.shearAmount = 0;
+    gPlayer.shearVelocity = 0;
+    gPlayer.prevVelocityX = 0;
     
     gCtx.cameraOffset = vec3(0, 4, 8);
 
@@ -429,7 +436,7 @@ function createGameObjects() {
             geom: spikeGeom,
             mat: obstacleMat,
             pos: vec3(randomLane, 0.5, -20 - (i * 15)),
-            scale: vec3(1, 1, 1),
+            scale: vec3(2, 2, 2),
             rotation: 0
         });
     }
@@ -446,7 +453,7 @@ function createGameObjects() {
             mat: coinMat,
             baseY: baseY,
             pos: vec3(randomLane, baseY, -30 - (i * 20)),
-            scale: vec3(0.5, 0.1, 0.5),
+            scale: vec3(1.0, 0.2, 1.0),
             rotation: 0,
             rotationAxis: 'z'
         });
@@ -551,8 +558,22 @@ function update() {
     const prevX = gPlayer.pos[0];
     gPlayer.pos[0] += (targetX - gPlayer.pos[0]) * lerpSpeed;
 
-    // Shear varies according to how far the player is from the target lane
-    gPlayer.shearAmount = (gPlayer.pos[0] - targetX) * 0.3;
+    // Spring effect
+    const currentVelocityX = gPlayer.pos[0] - prevX;
+    const accelerationX = currentVelocityX - (gPlayer.prevVelocityX || 0);
+    gPlayer.prevVelocityX = currentVelocityX;
+
+    // Properties for the spring model
+    const springStiffness = 0.5;  // dureza
+    const springDamping = 0.55;   // quao rapido para de oscilar
+    const externalForceMultiplier = 1.0;
+
+    // Calculate forces acting on the shear based on our spring model
+    const springForce = -springStiffness * gPlayer.shearAmount;
+    const dampingForce = -springDamping * gPlayer.shearVelocity;
+    const externalForce = -accelerationX * externalForceMultiplier;
+    gPlayer.shearVelocity += springForce + dampingForce + externalForce;
+    gPlayer.shearAmount += gPlayer.shearVelocity;
     
     gPlayer.pos[2] -= gState.speed;
 
@@ -754,7 +775,7 @@ function render() {
         gFloor.pos[2] = gPlayer.pos[2];
         drawObject(gFloor, gShader.cubeVao);
 
-        const maxDrawDistance = 80;
+        const maxDrawDistance = 65;
 
         if (gGameData.equippedTheme === 'sea') {
             gSea.pos[2] = gPlayer.pos[2];
