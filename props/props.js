@@ -291,4 +291,33 @@ export function configureTextura(gl, src) {
   return texture; // isso é uma textura WebGL
 }
 
+export function shear(plane, s1, s2) {
+    // Cria uma matriz identidade como um array simples
+    const m = [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+    ];
+
+    s1 = s1 || 0;
+    s2 = s2 || 0;
+
+    switch (plane.toLowerCase()) {
+        case 'xy': // Cisalhamento em X e Y baseado em Z
+            m[8] = s1;
+            m[9] = s2;
+            break;
+        case 'xz': // Cisalhamento em X e Z baseado em Y
+            m[4] = s1;
+            m[6] = s2; 
+            break;
+        case 'yz': // Cisalhamento em Y e Z baseado em X
+            m[1] = s1;
+            m[2] = s2;
+            break;
+    }
+
+    return m; // Retorna o array simples de 16 elementos
+}
 
