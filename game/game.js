@@ -20,7 +20,7 @@ var gObstacles = [];
 var gCoins = [];
 var gSea = {};
 var gScore = {
-    coins: 0
+    coins: localStorage.getItem("coins") || 0
 };
 
 // Game state management
@@ -66,6 +66,7 @@ function main() {
     gl.clearColor(0.1, 0.0, 0.2, 1.0);
     gl.enable(gl.DEPTH_TEST);
 
+    document.getElementById('score-display').innerText = `Coins: ${gScore.coins}`;
     setupShaders();
     createGameObjects();
     setupEventListeners();
@@ -383,7 +384,7 @@ function checkCollisions() {
             
             gState.current = 'gameOver';
             document.getElementById('instructions').style.display = 'none';
-            document.getElementById('final-score').innerText = `You collected ${gScore.coins} coins!`;
+            document.getElementById('final-score').innerText = `You have ${gScore.coins} coins!`;
             document.getElementById('game-over-overlay').style.display = 'flex';
             break; 
         }
@@ -407,6 +408,7 @@ function checkCoinCollisions() {
             playerBox.max[2] > coinBox.min[2] && playerBox.min[2] < coinBox.max[2]) {
             
             gScore.coins++;
+            localStorage.setItem("coins", gScore.coins);
             document.getElementById('score-display').innerText = `Coins: ${gScore.coins}`;
             
             // Move the coin far away to "collect" it
