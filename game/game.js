@@ -711,6 +711,8 @@ function render() {
         gFloor.pos[2] = gPlayer.pos[2];
         drawObject(gFloor, gShader.cubeVao);
 
+        const maxDrawDistance = 80;
+
         if (gGameData.equippedTheme === 'sea') {
             gSea.pos[2] = gPlayer.pos[2];
             drawObject(gSea, gShader.seaVao, true);
@@ -720,6 +722,7 @@ function render() {
 
             gTrees.forEach(tree => {
                 const baseModel = translate(tree.pos[0], tree.pos[1], tree.pos[2]);
+                if (Math.abs(tree.pos[2] - gPlayer.pos[2]) > maxDrawDistance) return;
                 let materials;
                 let useTextures;
 
@@ -744,8 +747,6 @@ function render() {
                 tree.instance.render(gl, gShader, gCtx, baseModel, materials, useTextures);
             });
         }
-
-        const maxDrawDistance = 80;
 
         gObstacles.forEach(obs => {
             if (Math.abs(obs.pos[2] - gPlayer.pos[2]) < maxDrawDistance) {
