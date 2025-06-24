@@ -892,20 +892,33 @@ const gFragmentShaderSrc = `#version 300 es
     uniform sampler2D uTextureMap; // ADD texture sampler
 
     void main() {
+        vec4 baseColor;
         if (uUseTexture) {
-            corSaida = texture(uTextureMap, vTexCoord);
+            baseColor = texture(uTextureMap, vTexCoord);
         } else {
-            vec3 L = normalize(vLight);
-            vec3 N = normalize(vNormal);
-            vec3 V = normalize(vView);
-            vec3 H = normalize(L + V);
-            vec4 ambient = uCorAmbiente;
-            float kd = max(dot(L, N), 0.0);
-            vec4 diffuse = kd * uCorDifusao;
-            float ks = (kd > 0.0) ? pow(max(dot(N, H), 0.0), uAlfaEsp) : 0.0;
-            vec4 specular = ks * uCorEspecular;
-            corSaida = ambient + diffuse + specular;
-            corSaida.a = 1.0;
+            // For non-textured objects, use their assigned diffuse color as the base.
+            baseColor = uCorDifusao;
         }
+
+        // These lighting calculations should happen for ALL objects.
+        vec3 L = normalize(vLight);
+        vec3 N = normalize(vNormal);
+        vec3 V = normalize(vView);
+        vec3 H = normalize(L + V);
+
+        // Ambient light is a constant base light.
+        vec4 ambient = uCorAmbiente;
+
+        // Diffuse light is the interaction between the light and the object's color/texture.
+        float kd = max(dot(L, N), 0.0);
+        vec4 diffuse = kd * baseColor; // Modulate the base color with the light intensity.
+
+        // Specular highlight is added on top.
+        float ks = (kd > 0.0) ? pow(max(dot(N, H), 0.0), uAlfaEsp) : 0.0;
+        vec4 specular = ks * uCorEspecular;
+
+        // The final color is the combination of all components.
+        corSaida = ambient + diffuse + specular;
+        corSaida.a = baseColor.a; // Retain the original alpha value.
     }
 `;
