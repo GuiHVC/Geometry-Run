@@ -23,6 +23,8 @@ var gForestPlane = {};
 var gTrees = [];
 var gTrunkTexture;
 var gLeafTexture;
+var gCreeperTexture;
+var gSteveTexture;
 
 var gState = {
     speed: 0.3,
@@ -57,8 +59,12 @@ const STYLE_DATA = {
     tree: {
         default: { name: 'Default Trees', price: 0 },
         textured: { name: 'Textured Trees', price: 25 }
+    },
+    cube: {
+        default: { name: 'Default Cube', price: 0 },
+        creeper: { name: 'Creeper Cube', price: 15 },
+        steve: { name: 'Steve Cube', price: 15 },
     }
-    // Adicionar "cube" aqui quando adicionar texturas de cubo
 };
 
 var gGameData = {
@@ -72,12 +78,16 @@ var gGameData = {
         tree: {
             default: { purchased: true },
             textured: { purchased: false }
+        },
+        cube: {
+            default: { purchased: true },
+            creeper: { purchased: false },
+            steve: { purchased: false }
         }
-        // Adicionar "cube" aqui quando adicionar texturas de cubo
     },
     equippedStyles: {
-        tree: 'default'
-        // cube: 'default'
+        tree: 'default',
+        cube: 'default'
     }
 };
 
@@ -387,6 +397,8 @@ function createGameObjects() {
 
     gTrunkTexture = configureTextura(gl, '../props/textures/trunk.png');
     gLeafTexture = configureTextura(gl, '../props/textures/leaves.jpg');
+    gCreeperTexture = configureTextura(gl, '../props/textures/creeper.png');
+    gSteveTexture = configureTextura(gl, '../props/textures/steve.jpg');
 
     // Player
     gPlayer = {
@@ -702,11 +714,42 @@ function render() {
         gl.drawArrays(gl.TRIANGLES, 0, obj.geom.np);
     };
 
-    if (gState.current === 'menu' || gState.current === 'shop') {
+    const drawPlayer = () => {
+        const equippedStyle = gGameData.equippedStyles.cube;
+
+        if (equippedStyle === 'default') {
+            drawObject(gPlayer, gShader.cubeVao);
+            return;
+        }
+
+        let textureObject;
+        switch (equippedStyle) {
+            case 'creeper':
+                textureObject = gCreeperTexture;
+                break;
+            case 'steve':
+                textureObject = gSteveTexture;
+                break;
+            default:
+                drawObject(gPlayer, gShader.cubeVao);
+                return;
+        }
+
+        gl.uniform1i(gShader.uUseTexture, 1);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, textureObject);
+        gl.uniform1i(gShader.uTextureMap, 0);
+
         drawObject(gPlayer, gShader.cubeVao);
+
+        gl.uniform1i(gShader.uUseTexture, 0);
+    };
+
+    if (gState.current === 'menu' || gState.current === 'shop') {
+        drawPlayer();
     } else {
         
-        drawObject(gPlayer, gShader.cubeVao);
+        drawPlayer();
         
         gFloor.pos[2] = gPlayer.pos[2];
         drawObject(gFloor, gShader.cubeVao);
