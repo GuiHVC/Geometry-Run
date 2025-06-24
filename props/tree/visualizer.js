@@ -1,10 +1,10 @@
 "use strict";
 
-import { Arvore } from './tree.js';
+import { Arvore, ArvoreRedonda } from './tree.js';
 import { configureTexturaDaURL } from '../props.js';
 
-const TRUNK_TEXTURE = "https://media.discordapp.net/attachments/1376661148958589121/1386388039550369882/image.png?ex=685985fa&is=6858347a&hm=1bdaaabeabb38c1cf3c1bcbabe8c78884925b741f4b6e506ea487219d1b20222&=&format=webp&quality=lossless";
-const LEAF_TEXTURE = "https://media.discordapp.net/attachments/1376661148958589121/1386358135198973984/texture_leaves_by_kuschelirmel_stock_djtlyu-fullview.jpg?ex=68596a20&is=685818a0&hm=fc0c9a920f04d2f0b48c9ae412d4d03e3b4a8bdd1f0a4242779428a33cf0ed4e&=&format=webp";
+const TRUNK_TEXTURE = "textures/trunk.png";
+const LEAF_TEXTURE = "textures/leaves.jpg";
 let trunkTexture = null;
 let leafTexture = null;
 // ==================================================================
@@ -67,7 +67,7 @@ var gl;        // webgl2
 var gCanvas;   // canvas
 
 // objeto a ser renderizado
-var gArvore = new Arvore();
+var gArvore = new ArvoreRedonda();
 
 // guarda coisas do shader
 var gShader = {

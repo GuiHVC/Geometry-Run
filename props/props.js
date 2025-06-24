@@ -3,7 +3,7 @@
 const ESPINHO = 1; // face lateral de espinhos
 const CUBO = 2; // faces laterais de cubos
 const CILINDRO = 3; // faces laterais de cilindros
-
+const ESFERA = 4; // faces laterais de esferas
 /*
 * objeto Espinho de raio 0.5 e altura 1.0 centrado na origem.
 * @param {number} div - divisões do espinho, determina a suavidade.
@@ -171,6 +171,10 @@ function texMap(p, type) {
       u = Math.atan2(p[2], p[0]) / (2 * Math.PI) + 0.5;
       v = (p[1] + 0.5) / 1.0;
       break;
+    case ESFERA:
+      u = (Math.atan2(p[1], p[0]) / (2 * Math.PI));
+      v = 1.0 - (Math.acos(p[2]) / Math.PI);
+      break;
   }
   return vec2(u, v);
 }
@@ -202,3 +206,50 @@ export function configureTexturaDaURL(gl, url) {
   return texture; // isso é uma textura WebGL
 }
 
+
+export class Esfera {
+  constructor(ndivs = 2) {
+    const TEMPLATE = [
+      vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0),
+      vec3(-1.0, 0.0, 0.0), vec3(0.0, -1.0, 0.0), vec3(0.0, 0.0, -1.0),
+    ];
+
+    this.pos = [];
+    this.nor = [];
+    this.tex = [];
+    this.axis = 2;
+    this.theta = vec3(0, 0, 0);
+    this.rotating = true;
+    this.position = vec3(0, 0, 0);
+    this.velrotation = 0;
+    this.veltranslation = 0;
+    this.scale = 1;
+    this.color = vec4(sorteieCorRGBA());
+
+    this.divideTriangle = (a, b, c, depth) => {
+      if (depth <= 0) {
+        tri(this.pos, this.nor, this.tex, [a, b, c], 0, 1, 2, ESFERA);
+        return;
+      }
+      const ab = normalize(mix(a, b, 0.5));
+      const ac = normalize(mix(a, c, 0.5));
+      const bc = normalize(mix(b, c, 0.5));
+      this.divideTriangle(a, ab, ac, depth - 1);
+      this.divideTriangle(b, bc, ab, depth - 1);
+      this.divideTriangle(c, ac, bc, depth - 1);
+      this.divideTriangle(ab, bc, ac, depth - 1);
+    };
+
+    const v = TEMPLATE;
+    this.divideTriangle(v[2], v[0], v[1], ndivs);
+    this.divideTriangle(v[1], v[3], v[2], ndivs);
+    this.divideTriangle(v[1], v[5], v[3], ndivs);
+    this.divideTriangle(v[0], v[5], v[1], ndivs);
+    this.divideTriangle(v[2], v[3], v[4], ndivs);
+    this.divideTriangle(v[0], v[2], v[4], ndivs);
+    this.divideTriangle(v[4], v[5], v[0], ndivs);
+    this.divideTriangle(v[4], v[3], v[5], ndivs);
+
+    this.np = this.pos.length;
+  }
+}
