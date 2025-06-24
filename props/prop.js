@@ -1,6 +1,6 @@
 "use strict";
 
-import { Cilindro, Cubo, configureTexturaDaURL } from './props.js';
+import { Cilindro, Cubo, configureTextura } from './props.js';
 
 const LUZ = {
   pos: vec4(0.0, 3.0, 0.0, 1.0),
@@ -56,9 +56,9 @@ var gCtx = {
   camTheta: [0, 0], // ângulo da câmera
 };
 
-const STEVE_HEAD = "https://media.discordapp.net/attachments/1376661148958589121/1386357210401083514/8578bfd439ef6ee41e103ae82b561986.jpg?ex=68596944&is=685817c4&hm=92fd1d37afc1d28c76caba3eaba1712e4e8c908322503aec4582c5f2810448c1&=&format=webp";
-const LEAVES = "https://media.discordapp.net/attachments/1376661148958589121/1386358135198973984/texture_leaves_by_kuschelirmel_stock_djtlyu-fullview.jpg?ex=68596a20&is=685818a0&hm=fc0c9a920f04d2f0b48c9ae412d4d03e3b4a8bdd1f0a4242779428a33cf0ed4e&=&format=webp";
-const urls = [LEAVES, STEVE_HEAD];
+const STEVE_HEAD = "textures/steve.jpg";
+const LEAVES = "textures/leaves.jpg";
+const texsources = [LEAVES, STEVE_HEAD];
 const textures = [null, null];
 
 window.onload = main;
@@ -79,8 +79,8 @@ function main() {
   gCubo.init();
 
   // escolha o URL de cada textura
-  textures[0] = configureTexturaDaURL(gl, urls[0]);
-  textures[1] = configureTexturaDaURL(gl, urls[1]);
+  textures[0] = configureTextura(gl, texsources[0]);
+  textures[1] = configureTextura(gl, texsources[1]);
 
   gl.viewport(0, 0, gCanvas.width, gCanvas.height);
   gl.clearColor(FUNDO[0], FUNDO[1], FUNDO[2], FUNDO[3]);

@@ -180,11 +180,11 @@ function texMap(p, type) {
 }
 
 /**
- * recebe a URL de imagem e configura a textura
- * @param {URL} url 
+ * recebe a source de imagem e configura a textura
+ * @param {string} src - Caminho da imagem a ser usada como textura.
  * @param {WebGLRenderingContext} gl - Contexto WebGL.
  */
-export function configureTexturaDaURL(gl, url) {
+export function configureTextura(gl, src) {
   var texture = gl.createTexture();
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -193,7 +193,7 @@ export function configureTexturaDaURL(gl, url) {
     new Uint8Array([255, 0, 0, 255]));
 
   var img = new Image();
-  img.src = url;
+  img.src = src;
   img.crossOrigin = "anonymous";
   img.addEventListener('load', function () {
     gl.bindTexture(gl.TEXTURE_2D, texture);

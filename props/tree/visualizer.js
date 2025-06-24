@@ -1,10 +1,10 @@
 "use strict";
 
 import { Arvore, ArvoreRedonda, ArvoreComGalhos } from './tree.js';
-import { configureTexturaDaURL } from '../props.js';
+import { configureTextura } from '../props.js';
 
-const TRUNK_TEXTURE = "textures/trunk.png";
-const LEAF_TEXTURE = "textures/leaves.jpg";
+const TRUNK_TEXTURE = "../textures/trunk.png";
+const LEAF_TEXTURE = "../textures/leaves.jpg";
 let trunkTexture = null;
 let leafTexture = null;
 // ==================================================================
@@ -94,8 +94,8 @@ function main() {
   gl = gCanvas.getContext('webgl2');
   if (!gl) alert("Vixe! Não achei WebGL 2.0 aqui :-(");
 
-  trunkTexture = configureTexturaDaURL(gl, TRUNK_TEXTURE);
-  leafTexture = configureTexturaDaURL(gl, LEAF_TEXTURE);
+  trunkTexture = configureTextura(gl, TRUNK_TEXTURE);
+  leafTexture = configureTextura(gl, LEAF_TEXTURE);
 
   console.log("Canvas: ", gCanvas.width, gCanvas.height);
 
