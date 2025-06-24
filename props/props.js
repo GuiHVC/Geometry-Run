@@ -4,6 +4,7 @@ const ESPINHO = 1; // face lateral de espinhos
 const CUBO = 2; // faces laterais de cubos
 const CILINDRO = 3; // faces laterais de cilindros
 const ESFERA = 4; // faces laterais de esferas
+const TRIANGULO = 5; // faces laterais de triângulos
 /*
 * objeto Espinho de raio 0.5 e altura 1.0 centrado na origem.
 * @param {number} div - divisões do espinho, determina a suavidade.
@@ -217,6 +218,57 @@ export class Esfera {
   }
 }
 
+export class Triangulo {
+  constructor(depth = 0.2) {
+    this.pos = [];
+    this.nor = [];
+    this.tex = [];
+    this.axis = 2;
+    this.theta = vec3(0, 0, 0);
+    this.rotating = true;
+    this.position = vec3(0, 0, 0);
+    this.velrotation = 0;
+    this.veltranslation = 0;
+    this.scale = 1;
+    this.color = vec4(sorteieCorRGBA());
+
+    // Altura do triângulo equilátero com lado 1
+    const height = Math.sqrt(3) / 2;
+    
+    // Vértices da base frontal (triângulo equilátero)
+    const vertices = [
+      vec3(-0.5, -height/2, depth/2),   // 0 - Vértice inferior esquerdo frontal
+      vec3(0.5, -height/2, depth/2),    // 1 - Vértice inferior direito frontal
+      vec3(0.0, height/2, depth/2),     // 2 - Vértice superior frontal
+      vec3(-0.5, -height/2, -depth/2),  // 3 - Vértice inferior esquerdo traseiro
+      vec3(0.5, -height/2, -depth/2),   // 4 - Vértice inferior direito traseiro
+      vec3(0.0, height/2, -depth/2)     // 5 - Vértice superior traseiro
+    ];
+
+    // Face frontal
+    tri(this.pos, this.nor, this.tex, vertices, 0, 1, 2, TRIANGULO);
+    
+    // Face traseira
+    tri(this.pos, this.nor, this.tex, vertices, 3, 5, 4, TRIANGULO);
+    
+    // Faces laterais (retângulos divididos em triângulos)
+    // Face inferior
+    tri(this.pos, this.nor, this.tex, vertices, 0, 3, 4, TRIANGULO);
+    tri(this.pos, this.nor, this.tex, vertices, 0, 4, 1, TRIANGULO);
+    
+    // Face lateral esquerda
+    tri(this.pos, this.nor, this.tex, vertices, 0, 2, 5, TRIANGULO);
+    tri(this.pos, this.nor, this.tex, vertices, 0, 5, 3, TRIANGULO);
+    
+    // Face lateral direita
+    tri(this.pos, this.nor, this.tex, vertices, 1, 4, 5, TRIANGULO);
+    tri(this.pos, this.nor, this.tex, vertices, 1, 5, 2, TRIANGULO);
+
+    this.np = this.pos.length;
+  }
+}
+
+
 /*
 * função auxiliar para criar triângulos a partir de vértices.
 * @param {Array} pos - Array para armazenar as posições dos vértices.
@@ -273,6 +325,11 @@ function texMap(p, type) {
     case ESFERA:
       u = (Math.atan2(p[1], p[0]) / (2 * Math.PI));
       v = 1.0 - (Math.acos(p[2]) / Math.PI);
+      break;          
+    case TRIANGULO:
+      const scale = 0.8;
+      u = ((p[0] + 0.5) + Math.atan2(p[2], p[0]) / (4 * Math.PI)) * scale;
+      v = ((p[1] + 0.5) * 0.8 + 0.1) * scale;
       break;
   }
   return vec2(u, v);
