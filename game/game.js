@@ -51,7 +51,7 @@ const LANE_POSITIONS = [-3.5, 0, 3.5];
 
 const LUZ = {
     pos: vec4(5.0, 10.0, 7.0, 1.0),
-    amb: vec4(0.1, 0.0, 0.2, 1.0),
+    amb: vec4(0.2, 0.2, 0.2, 1.0),
     dif: vec4(1.0, 1.0, 1.0, 1.0),
     esp: vec4(1.0, 1.0, 1.0, 1.0)
 };
@@ -876,7 +876,7 @@ function render() {
 const gVertexShaderSrc = `#version 300 es
     in vec4 aPosition;
     in vec3 aNormal;
-    in vec2 aTexCoord; // ADD texture coordinate attribute
+    in vec2 aTexCoord;
 
     uniform mat4 uModel;
     uniform mat4 uView;
@@ -890,7 +890,7 @@ const gVertexShaderSrc = `#version 300 es
     out vec3 vNormal;
     out vec3 vLight;
     out vec3 vView;
-    out vec2 vTexCoord; // PASS texture coordinate to fragment shader
+    out vec2 vTexCoord;
 
     void main() {
         vec4 worldPos = uModel * aPosition;
@@ -911,7 +911,7 @@ const gVertexShaderSrc = `#version 300 es
         vec4 pos = modelView * modifiedPos;
         vLight = (uLuzPos - pos).xyz;
         vView = -pos.xyz;
-        vTexCoord = aTexCoord; // Assign the coordinate
+        vTexCoord = aTexCoord;
     }
 `;
 
@@ -920,7 +920,7 @@ const gFragmentShaderSrc = `#version 300 es
     in vec3 vNormal;
     in vec3 vLight;
     in vec3 vView;
-    in vec2 vTexCoord; // RECEIVE texture coordinate
+    in vec2 vTexCoord;
 
     out vec4 corSaida;
 
@@ -929,37 +929,26 @@ const gFragmentShaderSrc = `#version 300 es
     uniform vec4 uCorEspecular;
     uniform float uAlfaEsp;
     
-    uniform bool uUseTexture; // ADD switch for texturing
-    uniform sampler2D uTextureMap; // ADD texture sampler
+    uniform bool uUseTexture;
+    uniform sampler2D uTextureMap;
 
     void main() {
-        vec4 baseColor;
-        if (uUseTexture) {
-            baseColor = texture(uTextureMap, vTexCoord);
-        } else {
-            // For non-textured objects, use their assigned diffuse color as the base.
-            baseColor = uCorDifusao;
-        }
+        vec4 baseColor = uUseTexture ? texture(uTextureMap, vTexCoord) : uCorDifusao;
 
-        // These lighting calculations should happen for ALL objects.
         vec3 L = normalize(vLight);
         vec3 N = normalize(vNormal);
         vec3 V = normalize(vView);
         vec3 H = normalize(L + V);
 
-        // Ambient light is a constant base light.
-        vec4 ambient = uCorAmbiente;
+        vec4 ambient = uCorAmbiente * baseColor;
 
-        // Diffuse light is the interaction between the light and the object's color/texture.
         float kd = max(dot(L, N), 0.0);
-        vec4 diffuse = kd * baseColor; // Modulate the base color with the light intensity.
+        vec4 diffuse = kd * baseColor;
 
-        // Specular highlight is added on top.
         float ks = (kd > 0.0) ? pow(max(dot(N, H), 0.0), uAlfaEsp) : 0.0;
         vec4 specular = ks * uCorEspecular;
 
-        // The final color is the combination of all components.
         corSaida = ambient + diffuse + specular;
-        corSaida.a = baseColor.a; // Retain the original alpha value.
+        corSaida.a = baseColor.a;
     }
 `;
