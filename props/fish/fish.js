@@ -89,4 +89,3 @@ export class Peixe {
     this.theta[0] = Math.sin(normalizedTime * 2) * 0.1;
   }
 }
-
