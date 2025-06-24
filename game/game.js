@@ -253,8 +253,16 @@ function resetGame() {
     
     for (let i = 0; i < gCoins.length; i++) {
         const coin = gCoins[i];
-        const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
-        coin.pos = vec3(randomLane, coin.baseY, -30 - (i * 20));
+        const zPos = -30 - (i * 20);
+        const availableLaneX = findAvailableLane(zPos);
+
+        if (availableLaneX !== null) {
+            coin.pos = vec3(availableLaneX, coin.baseY, zPos);
+        } else {
+            // If no lane is available, move the coin out of sight.
+            // It will eventually be recycled by the update loop.
+            coin.pos = vec3(0, -100, 0); 
+        }
     }
 
     for (let i = 0; i < gTrees.length; i++) {
@@ -370,6 +378,28 @@ function handleEquipStyle(styleGroup, styleId) {
     populateShop();
 }
 
+/**
+ * Checks for obstacles near a given Z-position and returns an available lane's X-coordinate.
+ * @param {number} zPos The Z-position to check around.
+ * @param {number} safeDistance The minimum distance from an obstacle on the Z-axis.
+ * @returns {number|null} The X-coordinate of a free lane, or null if no lanes are free.
+ */
+function findAvailableLane(zPos, safeDistance = 5.0) {
+    let availableLanes = [0, 1, 2];
+    for (const obstacle of gObstacles) {
+        if (Math.abs(obstacle.pos[2] - zPos) < safeDistance) {
+            const obstacleLaneIndex = LANE_POSITIONS.indexOf(obstacle.pos[0]);
+            if (obstacleLaneIndex !== -1) {
+                availableLanes = availableLanes.filter(laneIndex => laneIndex !== obstacleLaneIndex);
+            }
+        }
+    }
+    if (availableLanes.length > 0) {
+        const randomLaneIndex = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+        return LANE_POSITIONS[randomLaneIndex];
+    }
+    return null; // No available lane found
+}
 
 function setupShaders() {
     gShader.program = makeProgram(gl, gVertexShaderSrc, gFragmentShaderSrc);
@@ -448,19 +478,23 @@ function createGameObjects() {
     // Coins
     const coinMat = makeMaterial(vec4(1.0, 0.84, 0.0, 1.0), vec4(1.0, 0.84, 0.0, 1.0));
     for (let i = 0; i < 20; i++) {
-        const coinGeom = new Cilindro(6);
-        coinGeom.init();
         const baseY = gState.groundY + 0.5;
-        const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
-        gCoins.push({
-            geom: coinGeom,
-            mat: coinMat,
-            baseY: baseY,
-            pos: vec3(randomLane, baseY, -30 - (i * 20)),
-            scale: vec3(1.0, 0.2, 1.0),
-            rotation: 0,
-            rotationAxis: 'z'
-        });
+        const zPos = -30 - (i * 20);
+        const availableLaneX = findAvailableLane(zPos);
+
+        if (availableLaneX !== null) {
+            const coinGeom = new Cilindro(6);
+            coinGeom.init();
+            gCoins.push({
+                geom: coinGeom,
+                mat: coinMat,
+                baseY: baseY,
+                pos: vec3(availableLaneX, baseY, zPos),
+                scale: vec3(1.0, 0.2, 1.0),
+                rotation: 0,
+                rotationAxis: 'z'
+            });
+        }
     }
 
     // Sea
@@ -607,9 +641,16 @@ function update() {
         coin.rotation += 3;
         coin.pos[1] = coin.baseY + Math.sin(gState.time * floatFrequency + coin.pos[2]) * floatAmplitude;
 
-        if (coin.pos[2] > gPlayer.pos[2] + gCtx.cameraOffset[2]) {
-            coin.pos[2] -= gCoins.length * 20;
-            coin.pos[0] = LANE_POSITIONS[Math.floor(Math.random() * 3)];
+        if (coin.pos[2] > gPlayer.pos[2] + gCtx.cameraOffset[2] || coin.pos[1] < -50) {
+            const newZ = gPlayer.pos[2] - (gCoins.length * 10 + Math.random() * 10); // Place it far ahead
+            const newX = findAvailableLane(newZ);
+            if (newX !== null) {
+                coin.pos[0] = newX;
+                coin.pos[2] = newZ;
+                coin.pos[1] = coin.baseY; // Restore Y position
+            } else {
+                coin.pos[1] = -100; // Hide coin if no spot is found
+            }
         }
     }
 
