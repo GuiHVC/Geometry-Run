@@ -1,8 +1,8 @@
 "use strict";
 
-// Import geometry classes from the external props.js file
-// Note: Ensure the path to 'props.js' is correct for your project structure.
-import { Cilindro, Cubo, Espinho, Plano } from '../props/props.js';
+import { Cilindro, Cubo, Espinho, Plano, Esfera, configureTextura } from '../props/props.js';
+
+import { Arvore, ArvoreRedonda, ArvoreComGalhos } from '../props/tree/tree.js';
 
 // ========================================================
 // GLOBAL VARIABLES & CONSTANTS
@@ -19,11 +19,11 @@ var gFloor = {};
 var gObstacles = [];
 var gCoins = [];
 var gSea = {};
-var gScore = {
-    coins: localStorage.getItem("coins") || 0
-};
+var gForestPlane = {};
+var gTrees = [];
+var gTrunkTexture;
+var gLeafTexture;
 
-// Game state management
 var gState = {
     speed: 0.3,
     isJumping: false,
@@ -39,15 +39,46 @@ var gState = {
     currentLane: 1   // 0: left, 1: center, 2: right
 };
 
-// Define the X-coordinates for the three lanes
 const LANE_POSITIONS = [-3.5, 0, 3.5];
 
-// Lighting properties
 const LUZ = {
     pos: vec4(5.0, 10.0, 7.0, 1.0),
     amb: vec4(0.1, 0.0, 0.2, 1.0),
     dif: vec4(1.0, 1.0, 1.0, 1.0),
     esp: vec4(1.0, 1.0, 1.0, 1.0)
+};
+
+const THEME_DATA = {
+    forest: { name: 'Forest', price: 0 },
+    sea: { name: 'Sea', price: 10 }
+};
+
+const STYLE_DATA = {
+    tree: {
+        default: { name: 'Default Trees', price: 0 },
+        textured: { name: 'Textured Trees', price: 25 }
+    }
+    // Adicionar "cube" aqui quando adicionar texturas de cubo
+};
+
+var gGameData = {
+    coins: 0,
+    themes: {
+        forest: { purchased: true },
+        sea: { purchased: false }
+    },
+    equippedTheme: 'forest',
+    items: {
+        tree: {
+            default: { purchased: true },
+            textured: { purchased: false }
+        }
+        // Adicionar "cube" aqui quando adicionar texturas de cubo
+    },
+    equippedStyles: {
+        tree: 'default'
+        // cube: 'default'
+    }
 };
 
 // ========================================================
@@ -66,7 +97,9 @@ function main() {
     gl.clearColor(0.1, 0.0, 0.2, 1.0);
     gl.enable(gl.DEPTH_TEST);
 
-    document.getElementById('score-display').innerText = `Coins: ${gScore.coins}`;
+    loadGameData();
+
+    document.getElementById('score-display').innerText = `Coins: ${gGameData.coins}`;
     setupShaders();
     createGameObjects();
     setupEventListeners();
@@ -75,14 +108,28 @@ function main() {
     render();
 }
 
+function saveGameData() {
+    localStorage.setItem('saveFile', JSON.stringify(gGameData));
+}
+
+function loadGameData() {
+    const savedData = localStorage.getItem('saveFile');
+    if (savedData) {
+        const parsedData = JSON.parse(savedData);
+
+        gGameData = { ...gGameData, ...parsedData };
+        if (parsedData.themes) gGameData.themes = { ...gGameData.themes, ...parsedData.themes };
+        if (parsedData.items) gGameData.items = { ...gGameData.items, ...parsedData.items };
+        if (parsedData.equippedStyles) gGameData.equippedStyles = { ...gGameData.equippedStyles, ...parsedData.equippedStyles };
+    }
+}
+
 function setupEventListeners() {
     window.addEventListener('keydown', (event) => {
-        // Handle global key presses like pausing
         if (event.key === 'Escape') {
             togglePause();
         }
 
-        // The following controls only work when the game is actively playing
         if (gState.current !== 'playing') return;
 
         if (event.code === 'Space' && !gState.isJumping) {
@@ -90,16 +137,14 @@ function setupEventListeners() {
             gState.yVelocity = gState.jumpStrength;
         }
         
-        // Move right (D key)
         if (event.key === 'd' || event.key === 'D') {
-            if (gState.currentLane < 2) { // Cannot move right if in the rightmost lane
+            if (gState.currentLane < 2) {
                 gState.currentLane++;
             }
         }
         
-        // Move left (A key)
         if (event.key === 'a' || event.key === 'A') {
-            if (gState.currentLane > 0) { // Cannot move left if in the leftmost lane
+            if (gState.currentLane > 0) {
                 gState.currentLane--;
             }
         }
@@ -115,21 +160,38 @@ function setupEventListeners() {
     });
     
     document.getElementById('play-button').onclick = startGame;
+    document.getElementById('shop-button').onclick = () => {
+        document.getElementById('menu-overlay').classList.add('hidden');
+        document.getElementById('shop-overlay').classList.remove('hidden');
+        document.getElementById('score-display').classList.add('hidden');
+        gState.current = 'shop';
+        populateShop();
+    };
     document.getElementById('exit-button').onclick = () => {
          document.getElementById('menu-overlay').innerHTML = `<h1>Thanks for playing!</h1>`;
+         document.getElementById('score-display').classList.add('hidden');
+    };
+
+    document.getElementById('back-to-menu-button').onclick = () => {
+        document.getElementById('shop-overlay').classList.add('hidden');
+        document.getElementById('menu-overlay').classList.remove('hidden');
+        document.getElementById('score-display').classList.remove('hidden');
+        gState.current = 'menu';
     };
 
     document.getElementById('restart-button').onclick = () => {
-        document.getElementById('game-over-overlay').style.display = 'none';
+        document.getElementById('game-over-overlay').classList.add('hidden');
+        document.getElementById('score-display').classList.remove('hidden');
         resetGame();
-        gState.current = 'playing'; // Set state to playing after reset
+        gState.current = 'playing';
     };
     
     document.getElementById('main-menu-button').onclick = () => {
-        document.getElementById('game-over-overlay').style.display = 'none';
-        document.getElementById('menu-overlay').style.display = 'flex';
-        resetGame(); // Reset the game elements
-        gState.current = 'menu'; // Set state to menu
+        document.getElementById('game-over-overlay').classList.add('hidden');
+        document.getElementById('menu-overlay').classList.remove('hidden');
+        document.getElementById('score-display').classList.remove('hidden');
+        resetGame();
+        gState.current = 'menu';
     };
 }
 
@@ -137,16 +199,16 @@ function togglePause() {
     if (gState.current === 'playing') {
         gState.timeWhenPaused = Date.now();
         gState.current = 'paused';
-        document.getElementById('pause-overlay').style.display = 'flex';
+        document.getElementById('pause-overlay').classList.remove('hidden');
     } else if (gState.current === 'paused') {
         gState.pausedDuration += Date.now() - gState.timeWhenPaused;
         gState.current = 'playing';
-        document.getElementById('pause-overlay').style.display = 'none';
+        document.getElementById('pause-overlay').classList.add('hidden');
     }
 }
 
 function startGame() {
-    document.getElementById('menu-overlay').style.display = 'none';
+    document.getElementById('menu-overlay').classList.add('hidden');
     document.getElementById('instructions').style.opacity = '1';
     document.getElementById('score-display').style.display = 'block';
     resetGame();
@@ -154,25 +216,30 @@ function startGame() {
 }
 
 function resetGame() {
-    gState.currentLane = 1; // Reset player to the center lane
+    gState.currentLane = 1;
     
     gPlayer.pos = vec3(LANE_POSITIONS[gState.currentLane], gState.groundY, 0);
     gPlayer.rotation = 0;
     
-    // Always reset the camera offset to its default position when a game is reset
     gCtx.cameraOffset = vec3(0, 4, 8);
 
-    // Reposition obstacles into one of the three lanes
     for (let i = 0; i < gObstacles.length; i++) {
         const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
         gObstacles[i].pos = vec3(randomLane, 0.5, -20 - (i * 15));
     }
     
-    // Reposition coins into one of the three lanes
     for (let i = 0; i < gCoins.length; i++) {
         const coin = gCoins[i];
         const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
         coin.pos = vec3(randomLane, coin.baseY, -30 - (i * 20));
+    }
+
+    for (let i = 0; i < gTrees.length; i++) {
+        const tree = gTrees[i];
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const xPos = side * (gFloor.scale[0] / 2 + 7 + Math.random() * 20);
+        const zPos = -40 - (i * 20 + Math.random() * 15);
+        tree.pos = vec3(xPos, 1.5, zPos);
     }
 
     gState.isJumping = false;
@@ -180,10 +247,104 @@ function resetGame() {
     gState.startTime = Date.now();
     gState.pausedDuration = 0;
     
-    document.getElementById('score-display').innerText = `Coins: ${gScore.coins}`;
+    document.getElementById('score-display').innerText = `Coins: ${gGameData.coins}`;
     const instructions = document.getElementById('instructions');
     instructions.style.display = 'block';
-    document.getElementById('pause-overlay').style.display = 'none';
+    document.getElementById('pause-overlay').classList.add('hidden');
+}
+
+function populateShop() {
+    const shopGrid = document.getElementById('shop-grid');
+    shopGrid.innerHTML = '';
+    document.getElementById('coin-display-shop').innerText = `Coins: ${gGameData.coins}`;
+
+
+    for (const themeId in THEME_DATA) {
+        const theme = THEME_DATA[themeId];
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'shop-item';
+        let buttonHtml;
+
+        if (gGameData.themes[themeId].purchased) {
+            if (gGameData.equippedTheme === themeId) {
+                buttonHtml = `<button class="buy-button equipped" disabled>Equipped</button>`;
+            } else {
+                buttonHtml = `<button class="buy-button purchased">Equip</button>`;
+                itemDiv.onclick = () => handleEquipTheme(themeId);
+            }
+        } else {
+            const canAfford = gGameData.coins >= theme.price;
+            buttonHtml = `<button class="buy-button" ${!canAfford ? 'disabled' : ''}>Buy</button>`;
+            itemDiv.onclick = () => handleBuyTheme(themeId);
+        }
+        itemDiv.innerHTML = `
+            <div class="item-name">${theme.name}</div>
+            <div class="item-price">Price: ${theme.price} Coins</div>
+            ${buttonHtml}
+        `;
+        shopGrid.appendChild(itemDiv);
+    }
+
+
+    for (const styleGroup in STYLE_DATA) {
+        for (const styleId in STYLE_DATA[styleGroup]) {
+            const style = STYLE_DATA[styleGroup][styleId];
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'shop-item';
+            let buttonHtml;
+
+            if (gGameData.items[styleGroup][styleId].purchased) {
+                if (gGameData.equippedStyles[styleGroup] === styleId) {
+                     buttonHtml = `<button class="buy-button equipped" disabled>Equipped</button>`;
+                } else {
+                     buttonHtml = `<button class="buy-button purchased">Equip</button>`;
+                     itemDiv.onclick = () => handleEquipStyle(styleGroup, styleId);
+                }
+            } else {
+                const canAfford = gGameData.coins >= style.price;
+                buttonHtml = `<button class="buy-button" ${!canAfford ? 'disabled' : ''}>Buy</button>`;
+                itemDiv.onclick = () => handleBuyStyle(styleGroup, styleId);
+            }
+            itemDiv.innerHTML = `
+                <div class="item-name">${style.name}</div>
+                <div class="item-price">Price: ${style.price} Coins</div>
+                ${buttonHtml}
+            `;
+            shopGrid.appendChild(itemDiv);
+        }
+    }
+}
+
+function handleBuyTheme(themeId) {
+    const theme = THEME_DATA[themeId];
+    if (gGameData.coins >= theme.price) {
+        gGameData.coins -= theme.price;
+        gGameData.themes[themeId].purchased = true;
+        saveGameData();
+        populateShop();
+    }
+}
+
+function handleEquipTheme(themeId) {
+    gGameData.equippedTheme = themeId;
+    saveGameData();
+    populateShop();
+}
+
+function handleBuyStyle(styleGroup, styleId) {
+    const style = STYLE_DATA[styleGroup][styleId];
+    if (gGameData.coins >= style.price) {
+        gGameData.coins -= style.price;
+        gGameData.items[styleGroup][styleId].purchased = true;
+        saveGameData();
+        populateShop();
+    }
+}
+
+function handleEquipStyle(styleGroup, styleId) {
+    gGameData.equippedStyles[styleGroup] = styleId;
+    saveGameData();
+    populateShop();
 }
 
 
@@ -204,6 +365,8 @@ function setupShaders() {
     gShader.uIsSea = getLoc("uIsSea");
     gShader.uRoadWidth = getLoc("uRoadWidth");
     gShader.uLuzPos = getLoc("uLuzPos");
+    gShader.uUseTexture = getLoc("uUseTexture");
+    gShader.uTextureMap = getLoc("uTextureMap");
     
     const aspect = gCanvas.width / gCanvas.height;
     gCtx.perspective = perspective(60, aspect, 0.1, 1000);
@@ -217,6 +380,9 @@ function createGameObjects() {
         esp: mult(LUZ.esp, vec4(1,1,1,1)), 
         alfa: alfa
     });
+
+    gTrunkTexture = configureTextura(gl, '../props/textures/trunk.png');
+    gLeafTexture = configureTextura(gl, '../props/textures/leaves.jpg');
 
     // Player
     gPlayer = {
@@ -274,24 +440,44 @@ function createGameObjects() {
     gSea = {
         geom: new Plano(150, 150, 50),
         mat: makeMaterial(vec4(0.1, 0.3, 0.7, 1.0), vec4(0.1, 0.3, 0.7, 1.0)),
-        pos: vec3(0, -1, 0)
+        pos: vec3(0, -0.3, 0)
+    };
+
+    // Forest
+    gForestPlane = {
+        geom: new Plano(150, 150, 50),
+        mat: makeMaterial(vec4(0.1, 0.4, 0.2, 1.0), vec4(0.1, 0.4, 0.2, 1.0)), // A dark green material
+        pos: vec3(0, -0.5, 0) // Position it at the same level as the sea
     };
 
     const createVAO = (geometry) => {
         const vao = gl.createVertexArray();
         gl.bindVertexArray(vao);
+
+        // Position Buffer
         const vertexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, flatten(geometry.pos), gl.STATIC_DRAW);
         const aPosition = gl.getAttribLocation(gShader.program, "aPosition");
         gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(aPosition);
+
+        // Normal Buffer
         const normalBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, flatten(geometry.nor), gl.STATIC_DRAW);
         const aNormal = gl.getAttribLocation(gShader.program, "aNormal");
         gl.vertexAttribPointer(aNormal, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(aNormal);
+
+        // Texture Buffer
+        const texCoordBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, flatten(geometry.tex), gl.STATIC_DRAW);
+        const aTexCoord = gl.getAttribLocation(gShader.program, "aTexCoord");
+        gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(aTexCoord);
+
         gl.bindVertexArray(null);
         return vao;
     };
@@ -300,16 +486,42 @@ function createGameObjects() {
     gShader.spikeVao = createVAO(gObstacles[0].geom);
     gShader.coinVao = createVAO(gCoins[0].geom);
     gShader.seaVao = createVAO(gSea.geom);
+    gShader.planeVao = createVAO(gForestPlane.geom);
+    gShader.treeTrunkVao = createVAO(new Cilindro(8));
+    gShader.pointyLeafVao = createVAO(new Espinho(8));
+    gShader.roundLeafVao = createVAO(new Esfera(4));
+
+    const trunkMat = makeMaterial(vec4(0.4, 0.2, 0.1, 1.0), vec4(0.4, 0.2, 0.1, 1.0));
+    const pointyLeafMat = makeMaterial(vec4(0.0, 0.5, 0.1, 1.0), vec4(0.0, 0.5, 0.1, 1.0));
+    const roundLeafMat = makeMaterial(vec4(0.1, 0.6, 0.2, 1.0), vec4(0.1, 0.6, 0.2, 1.0));
+
+    const treeTypes = [Arvore, ArvoreRedonda, ArvoreComGalhos];
+    const numTrees = 30;
+
+    for (let i = 0; i < numTrees; i++) {
+        const TreeClass = treeTypes[Math.floor(Math.random() * treeTypes.length)];
+        
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const xPos = side * (gFloor.scale[0] / 2 + 7 + Math.random() * 20);
+        const zPos = -40 - (i * 20 + Math.random() * 15);
+
+        gTrees.push({
+            instance: new TreeClass(),
+            pos: vec3(xPos, 1.5, zPos),
+            trunkMat: trunkMat,
+            pointyLeafMat: pointyLeafMat,
+            roundLeafMat: roundLeafMat,
+            type: TreeClass.name
+        });
+    }
 }
 
 function update() {
-    if (gState.current === 'paused' || gState.current === 'gameOver') {
-        return;
-    }
+    if (gState.current === 'paused' || gState.current === 'gameOver') return;
 
     gState.time = (Date.now() - gState.startTime - gState.pausedDuration) / 1000.0;
 
-    if (gState.current === 'menu') {
+    if (gState.current === 'menu' || gState.current === 'shop') {
         const rotationMatrix = rotateY(0.2);
         const offsetVec4 = vec4(gCtx.cameraOffset[0], gCtx.cameraOffset[1], gCtx.cameraOffset[2], 0);
         const rotatedOffset = mult(rotationMatrix, offsetVec4);
@@ -318,15 +530,12 @@ function update() {
         return;
     }
 
-    // Smoothly move player to the target lane
     const targetX = LANE_POSITIONS[gState.currentLane];
-    const lerpSpeed = 0.25; // Controls how fast the player switches lanes
+    const lerpSpeed = 0.25;
     gPlayer.pos[0] += (targetX - gPlayer.pos[0]) * lerpSpeed;
     
-    // Move player forward continuously
     gPlayer.pos[2] -= gState.speed;
 
-    // Handle jumping physics
     if (gState.isJumping) {
         gPlayer.pos[1] += gState.yVelocity;
         gState.yVelocity += gState.gravity;
@@ -340,7 +549,6 @@ function update() {
         }
     }
     
-    // Recycle obstacles
     for (const obstacle of gObstacles) {
         if (obstacle.pos[2] > gPlayer.pos[2] + gCtx.cameraOffset[2]) {
             obstacle.pos[2] -= gObstacles.length * 15;
@@ -348,7 +556,6 @@ function update() {
         }
     }
     
-    // Animate and recycle coins
     const floatAmplitude = 0.25;
     const floatFrequency = 3.0;
     for (const coin of gCoins) {
@@ -358,6 +565,14 @@ function update() {
         if (coin.pos[2] > gPlayer.pos[2] + gCtx.cameraOffset[2]) {
             coin.pos[2] -= gCoins.length * 20;
             coin.pos[0] = LANE_POSITIONS[Math.floor(Math.random() * 3)];
+        }
+    }
+
+    for (const tree of gTrees) {
+        if (tree.pos[2] > gPlayer.pos[2] + gCtx.cameraOffset[2]) {
+            tree.pos[2] -= gTrees.length * 20 + Math.random() * 15;
+            const side = Math.random() < 0.5 ? -1 : 1;
+            tree.pos[0] = side * (gFloor.scale[0] / 2 + 7 + Math.random() * 20);
         }
     }
 
@@ -377,15 +592,15 @@ function checkCollisions() {
     const playerBox = getBoundingBox(gPlayer);
     for (const obstacle of gObstacles) {
         const obstacleBox = getBoundingBox(obstacle);
-        // AABB collision detection
         if (playerBox.max[0] > obstacleBox.min[0] && playerBox.min[0] < obstacleBox.max[0] &&
             playerBox.max[1] > obstacleBox.min[1] && playerBox.min[1] < obstacleBox.max[1] &&
             playerBox.max[2] > obstacleBox.min[2] && playerBox.min[2] < obstacleBox.max[2]) {
             
             gState.current = 'gameOver';
-            document.getElementById('instructions').style.display = 'none';
-            document.getElementById('final-score').innerText = `You have ${gScore.coins} coins!`;
-            document.getElementById('game-over-overlay').style.display = 'flex';
+            document.getElementById('instructions').classList.add('hidden');
+            document.getElementById('final-score').innerText = `You have ${gGameData.coins} coins!`;
+            document.getElementById('score-display').classList.add('hidden');
+            document.getElementById('game-over-overlay').classList.remove('hidden');
             break; 
         }
     }
@@ -407,11 +622,10 @@ function checkCoinCollisions() {
             playerBox.max[1] > coinBox.min[1] && playerBox.min[1] < coinBox.max[1] &&
             playerBox.max[2] > coinBox.min[2] && playerBox.min[2] < coinBox.max[2]) {
             
-            gScore.coins++;
-            localStorage.setItem("coins", gScore.coins);
-            document.getElementById('score-display').innerText = `Coins: ${gScore.coins}`;
+            gGameData.coins++;
+            saveGameData();
+            document.getElementById('score-display').innerText = `Coins: ${gGameData.coins}`;
             
-            // Move the coin far away to "collect" it
             coin.pos[2] -= gCoins.length * 20; 
         }
     }
@@ -422,8 +636,8 @@ function render() {
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    const eye = gState.current === 'menu' ? gCtx.cameraOffset : add(gPlayer.pos, gCtx.cameraOffset);
-    const at = gState.current === 'menu' ? vec3(0,0,0) : gPlayer.pos;
+    const eye = (gState.current === 'menu' || gState.current === 'shop') ? gCtx.cameraOffset : add(gPlayer.pos, gCtx.cameraOffset);
+    const at = (gState.current === 'menu' || gState.current === 'shop') ? vec3(0,0,0) : gPlayer.pos;
     gCtx.view = lookAt(eye, at, vec3(0,1,0));
     gl.uniformMatrix4fv(gShader.uView, false, flatten(gCtx.view));
 
@@ -463,25 +677,62 @@ function render() {
         gl.drawArrays(gl.TRIANGLES, 0, obj.geom.np);
     }
 
-    if (gState.current === 'menu') {
+    if (gState.current === 'menu' || gState.current === 'shop') {
         drawObject(gPlayer, gShader.cubeVao);
     } else {
+        
         drawObject(gPlayer, gShader.cubeVao);
+        
         gFloor.pos[2] = gPlayer.pos[2];
         drawObject(gFloor, gShader.cubeVao);
-        const maxDrawDistance = 80; // Culling distance
+
+        if (gGameData.equippedTheme === 'sea') {
+            gSea.pos[2] = gPlayer.pos[2];
+            drawObject(gSea, gShader.seaVao, true);
+        } else {
+            gForestPlane.pos[2] = gPlayer.pos[2];
+            drawObject(gForestPlane, gShader.planeVao, false);
+
+            gTrees.forEach(tree => {
+                const baseModel = translate(tree.pos[0], tree.pos[1], tree.pos[2]);
+                let materials;
+                let useTextures;
+
+                if (gGameData.equippedStyles.tree === 'textured') {
+                    useTextures = true;
+                    materials = {
+                        trunk: gTrunkTexture,
+                        leaves: gLeafTexture,
+                        pointyLeaves: gLeafTexture, 
+                        roundLeaves: gLeafTexture
+                    };
+                } else {
+                    useTextures = false;
+                    materials = {
+                        trunk: tree.trunkMat,
+                        leaves: tree.pointyLeafMat,
+                        pointyLeaves: tree.pointyLeafMat,
+                        roundLeaves: tree.roundLeafMat
+                    };
+                }
+                
+                tree.instance.render(gl, gShader, gCtx, baseModel, materials, useTextures);
+            });
+        }
+
+        const maxDrawDistance = 80;
+
         gObstacles.forEach(obs => {
             if (Math.abs(obs.pos[2] - gPlayer.pos[2]) < maxDrawDistance) {
                 drawObject(obs, gShader.spikeVao);
             }
         });
+        
         gCoins.forEach(coin => {
             if (Math.abs(coin.pos[2] - gPlayer.pos[2]) < maxDrawDistance) {
                 drawObject(coin, gShader.coinVao);
             }
         });
-        gSea.pos[2] = gPlayer.pos[2];
-        drawObject(gSea, gShader.seaVao, true);
     }
 
     requestAnimationFrame(render);
@@ -494,6 +745,8 @@ function render() {
 const gVertexShaderSrc = `#version 300 es
     in vec4 aPosition;
     in vec3 aNormal;
+    in vec2 aTexCoord; // ADD texture coordinate attribute
+
     uniform mat4 uModel;
     uniform mat4 uView;
     uniform mat4 uPerspective;
@@ -502,16 +755,17 @@ const gVertexShaderSrc = `#version 300 es
     uniform float uTime;
     uniform float uRoadWidth;
     uniform bool uIsSea;
+
     out vec3 vNormal;
     out vec3 vLight;
     out vec3 vView;
+    out vec2 vTexCoord; // PASS texture coordinate to fragment shader
 
     void main() {
         vec4 worldPos = uModel * aPosition;
         vec4 modifiedPos = aPosition;
 
         if (uIsSea) {
-            // Only animate waves outside the main path
             if (worldPos.x < -uRoadWidth / 2.0 || worldPos.x > uRoadWidth / 2.0) {
                 float wave1 = 0.8 * sin(worldPos.x * 0.5 + uTime * 2.0);
                 float wave2 = 0.4 * sin(worldPos.z * 0.8 + uTime * 3.0);
@@ -523,13 +777,10 @@ const gVertexShaderSrc = `#version 300 es
         gl_Position = uPerspective * modelView * modifiedPos;
         
         vNormal = mat3(uInverseTranspose) * aNormal;
-        
         vec4 pos = modelView * modifiedPos;
-        
-        vec4 viewLuzPos = uLuzPos;
-        vLight = (viewLuzPos - pos).xyz;
-
+        vLight = (uLuzPos - pos).xyz;
         vView = -pos.xyz;
+        vTexCoord = aTexCoord; // Assign the coordinate
     }
 `;
 
@@ -538,22 +789,33 @@ const gFragmentShaderSrc = `#version 300 es
     in vec3 vNormal;
     in vec3 vLight;
     in vec3 vView;
+    in vec2 vTexCoord; // RECEIVE texture coordinate
+
     out vec4 corSaida;
+
     uniform vec4 uCorAmbiente;
     uniform vec4 uCorDifusao;
     uniform vec4 uCorEspecular;
     uniform float uAlfaEsp;
+    
+    uniform bool uUseTexture; // ADD switch for texturing
+    uniform sampler2D uTextureMap; // ADD texture sampler
+
     void main() {
-        vec3 L = normalize(vLight);
-        vec3 N = normalize(vNormal);
-        vec3 V = normalize(vView);
-        vec3 H = normalize(L + V);
-        vec4 ambient = uCorAmbiente;
-        float kd = max(dot(L, N), 0.0);
-        vec4 diffuse = kd * uCorDifusao;
-        float ks = (kd > 0.0) ? pow(max(dot(N, H), 0.0), uAlfaEsp) : 0.0;
-        vec4 specular = ks * uCorEspecular;
-        corSaida = ambient + diffuse + specular;
-        corSaida.a = 1.0;
+        if (uUseTexture) {
+            corSaida = texture(uTextureMap, vTexCoord);
+        } else {
+            vec3 L = normalize(vLight);
+            vec3 N = normalize(vNormal);
+            vec3 V = normalize(vView);
+            vec3 H = normalize(L + V);
+            vec4 ambient = uCorAmbiente;
+            float kd = max(dot(L, N), 0.0);
+            vec4 diffuse = kd * uCorDifusao;
+            float ks = (kd > 0.0) ? pow(max(dot(N, H), 0.0), uAlfaEsp) : 0.0;
+            vec4 specular = ks * uCorEspecular;
+            corSaida = ambient + diffuse + specular;
+            corSaida.a = 1.0;
+        }
     }
 `;

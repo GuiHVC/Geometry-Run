@@ -18,6 +18,8 @@ export class Espinho {
     this.axis = 2;
     this.theta = vec3(0, 0, 0);
     this.rodando = true;
+
+    this.init();
   }
 
   init() {
@@ -53,6 +55,8 @@ export class Cubo {
     this.axis = 2;
     this.theta = vec3(0, 0, 0);
     this.rodando = true;
+
+    this.init();
   }
 
   init() {
@@ -89,6 +93,8 @@ export class Cilindro {
     this.axis = 2;
     this.theta = vec3(0, 0, 0);
     this.rodando = true;
+
+    this.init();
   }
 
   init() {
@@ -122,17 +128,24 @@ export class Plano {
     constructor(width, depth, divisions) {
         this.pos = [];
         this.nor = [];
+        this.tex = [];
         this.np = 0;
         this.init(width, depth, divisions);
     }
 
     init(width, depth, divisions) {
         const vertices = [];
+        const texCoords = [];
+
         for (let i = 0; i <= divisions; i++) {
             for (let j = 0; j <= divisions; j++) {
                 const x = (j / divisions - 0.5) * width;
                 const z = (i / divisions - 0.5) * depth;
                 vertices.push(vec3(x, 0, z));
+
+                const u = j / divisions;
+                const v = i / divisions;
+                texCoords.push(vec2(u, v));
             }
         }
 
@@ -151,10 +164,11 @@ export class Plano {
         for (let index of indices) {
             this.pos.push(vertices[index]);
             this.nor.push(vec3(0, 1, 0));
+            this.tex.push(texCoords[index]);
         }
         this.np = indices.length;
     }
-  }
+}
   
 export class Esfera {
   constructor(ndivs = 2) {

@@ -11,7 +11,7 @@ canvas {
     height: 100vh; 
 }
 
-#menu-overlay, #pause-overlay, #game-over-overlay {
+#menu-overlay, #pause-overlay, #game-over-overlay, #shop-overlay {
     position: absolute;
     top: 0;
     left: 0;
@@ -25,7 +25,11 @@ canvas {
     z-index: 10;
 }
 
-#menu-overlay h1, #pause-overlay h1, #game-over-overlay h1 {
+.hidden {
+    display: none !important;
+}
+
+#menu-overlay h1, #pause-overlay h1, #game-over-overlay h1, #shop-overlay h1 {
     color: #fff;
     text-shadow: 0 0 10px #fff, 0 0 20px #ff00ff, 0 0 30px #ff00ff;
     font-size: 4em;
@@ -52,6 +56,8 @@ canvas {
     margin: 10px;
     cursor: pointer;
     transition: color 0.3s, text-shadow 0.3s, border-color 0.3s;
+    min-width: 200px;
+    box-sizing: border-box;
 }
 
 .menu-button:hover {
@@ -84,3 +90,96 @@ canvas {
     text-shadow: 1px 1px 2px #000;
     z-index: 10;
 }
+
+#coin-display-shop {
+    font-size: 1.8rem;
+    margin-bottom: 25px;
+    color: #ffd700;
+    text-shadow: 0 0 5px #ffd700;
+}
+
+#shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+    width: 80%;
+    max-width: 800px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 20px;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    margin-bottom: 20px;
+}
+
+.shop-item {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid #00ffff;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.shop-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px #00ffff;
+}
+
+.shop-item img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border: 1px solid #00ffff;
+}
+
+.shop-item .item-name {
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+    color: #fff;
+}
+
+.shop-item .item-price {
+    font-size: 1rem;
+    color: #ffd700;
+    margin-bottom: 10px;
+}
+
+.buy-button {
+    width: 100%;
+    padding: 8px;
+    font-size: 1rem;
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #00ffff;
+    color: #000;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.buy-button:hover:not(:disabled) {
+    background-color: #8affff;
+}
+
+.buy-button.equipped {
+    background-color: #ff00ff;
+    color: #fff;
+    cursor: default;
+}
+
+.buy-button.purchased {
+    background-color: #555;
+    color: #ccc;
+}
+
+.buy-button:disabled:not(.equipped) {
+    background-color: #333;
+    color: #666;
+    cursor: not-allowed;
+}
+
