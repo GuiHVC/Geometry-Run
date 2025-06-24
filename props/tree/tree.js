@@ -1,4 +1,4 @@
-import { Espinho, Cilindro} from '../props.js';
+import { Espinho, Cilindro, Esfera} from '../props.js';
 
 export class Arvore{
   constructor() {
@@ -63,5 +63,68 @@ export class Arvore{
       gl.drawArrays(gl.TRIANGLES, 0, this.leaves[i].np);
     }
   };
+};
 
+export class ArvoreRedonda{
+  constructor() {
+    this.base = new Cilindro(8);
+    this.base.init();
+    this.leaves = [new Esfera(4), new Esfera(4)];
+     
+    this.axis = 2;
+    this.theta = vec3(0, 0, 0);  // rotação em cada eixo
+    this.rodando = true;        // pausa a animação
+  };
+
+  render(gl, gShader, gCtx, trunkTexture, leafTexture) {
+    if(this.rodando){
+        this.theta[1] += 0.5; // incrementa a rotação
+    };
+
+    let baseModel = mat4();
+    baseModel = mult(baseModel, rotate(this.theta[0], vec3(1, 0, 0)));
+    baseModel = mult(baseModel, rotate(this.theta[1], vec3(0, 1, 0)));
+    baseModel = mult(baseModel, rotate(this.theta[2], vec3(0, 0, 1)));
+    baseModel = mult(baseModel, translate(0, -0.5, 0)); // move a base para baixo
+    
+    gl.bindVertexArray(gShader.ArvoreVAOs[0]);
+    let trunkModel = mult(baseModel, scale(.5, .8, .5));
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, trunkTexture);
+    gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+    gl.bindVertexArray(gShader.ArvoreVAOs[0]);
+
+    let modelView = mult(gCtx.view, trunkModel);
+    let modelViewInvTrans = transpose(inverse(modelView));
+    gl.uniformMatrix4fv(gShader.uModel, false, flatten(trunkModel));
+    gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(modelViewInvTrans));
+    gl.drawArrays(gl.TRIANGLES, 0, this.base.np);
+
+    // === Leaves ===
+    const leavesScales = [[0.6, 0.6, 0.6], [0.4, 0.4, 0.4]];
+    const leafOffsets = [1.2, 3.5];
+
+    for (let i = 0; i < this.leaves.length; ++i) {
+      gl.bindVertexArray(gShader.ArvoreVAOs[i + 1]);
+
+      let leafModel = mat4();
+      leafModel = mult(leafModel, scale(...leavesScales[i]));
+      leafModel = mult(leafModel, translate(0, leafOffsets[i], 0));
+      
+      // Apply baseModel transform to the whole leaf (including position above trunk)
+      leafModel = mult(baseModel, leafModel);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, leafTexture);
+      gl.uniform1i(gl.getUniformLocation(gShader.program, "uTextureMap"), 0);
+      gl.bindVertexArray(gShader.ArvoreVAOs[i + 1]);
+
+      let mv = mult(gCtx.view, leafModel);
+      let invT = transpose(inverse(mv));
+      gl.uniformMatrix4fv(gShader.uModel, false, flatten(leafModel));
+      gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(invT));
+      gl.drawArrays(gl.TRIANGLES, 0, this.leaves[i].np);
+    }
+  };
 };
