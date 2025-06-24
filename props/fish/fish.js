@@ -5,6 +5,12 @@ export class Peixe {
     this.body = new Esfera(8);
     this.tail = new Triangulo(0.4);
     this.theta = vec3(0, 0, 0);
+    this.animationTime = 0;
+    this.animationSpeed = 0.02;
+    this.arcHeight = 2.0;
+    this.cycleLength = Math.PI * 2; // Full cycle length
+    this.baseY = -1.0; // Starting depth underwater
+    this.position = vec3(0, this.baseY, 0);
   }
 
   /**
@@ -16,14 +22,14 @@ export class Peixe {
    * @param {object} materials An object containing either WebGL texture objects or material color objects.
    * @param {boolean} useTextures A flag to determine whether to render with textures or lighting.
    */  render(gl, gShader, gCtx, baseModel, materials, useTextures) {
-    //this.theta[1] += 0.5;
+    this.diveAnimation();
 
-    const instanceRotation = rotate(this.theta[1], vec3(0, 1, 0));
+    let fishTransform = mult(baseModel, translate(this.position[0], this.position[1], this.position[2]));
+    fishTransform = mult(fishTransform, rotate(this.theta[0] * 180 / Math.PI, vec3(1, 0, 0))); // Roll
+    fishTransform = mult(fishTransform, rotate(this.theta[1], vec3(0, 1, 0))); // Yaw (manual rotation)
+    fishTransform = mult(fishTransform, rotate(this.theta[2] * 180 / Math.PI, vec3(0, 0, 1))); // Pitch (diving angle)
 
-    // Desenha Corpo do Peixe
-    let bodyModel = mult(baseModel, instanceRotation);
-    bodyModel = mult(bodyModel, translate(0, 0, 0));
-    bodyModel = mult(bodyModel, rotate(90, vec3(0, 1, 0)));
+    let bodyModel = mult(fishTransform, rotate(90, vec3(0, 1, 0)));
     bodyModel = mult(bodyModel, scale(0.3, 0.6, 1.0));
 
     if (useTextures) {
@@ -43,7 +49,6 @@ export class Peixe {
     gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(transpose(inverse(modelView))));
     gl.drawArrays(gl.TRIANGLES, 0, this.body.np);
 
-    // Desenha Cauda do Peixe
     if (useTextures) {
       gl.bindTexture(gl.TEXTURE_2D, materials.fishTail);
     } else {
@@ -51,8 +56,7 @@ export class Peixe {
       gl.uniform4fv(gShader.uCorDif, flatten(materials.fishTail.dif));
     }
 
-    let tailModel = mult(baseModel, instanceRotation);
-    tailModel = mult(tailModel, translate(-0.8, 0, 0));
+    let tailModel = mult(fishTransform, translate(-0.8, 0, 0));
     tailModel = mult(tailModel, rotate(90, vec3(0, 0, 1)));
     tailModel = mult(tailModel, scale(0.8, 1.2, 0.4));
 
@@ -63,6 +67,26 @@ export class Peixe {
     gl.drawArrays(gl.TRIANGLES, 0, this.tail.np);
 
     gl.uniform1i(gShader.uUseTexture, 0);
+  }
+  diveAnimation() {
+    this.animationTime += this.animationSpeed;
+    
+    const normalizedTime = this.animationTime % this.cycleLength;
+    
+    const verticalOffset = Math.sin(normalizedTime) * this.arcHeight;
+    this.position[1] = this.baseY + verticalOffset;
+    
+    // Calculate horizontal movement - fish moves forward during the dive
+    this.position[0] = Math.cos(normalizedTime) * 0.5;
+    this.position[2] = Math.sin(normalizedTime * 0.5) * 0.3; // Slight side-to-side movement
+    
+    // Calculate rotation based on the diving motion
+    // Fish should tilt down when diving and up when emerging
+    const velocityY = Math.cos(normalizedTime) * this.arcHeight; // Derivative of sine for velocity
+    this.theta[2] = Math.atan2(-velocityY, 1.0) * 0.5; // Pitch angle based on vertical velocity
+    
+    // Add slight roll for more natural movement
+    this.theta[0] = Math.sin(normalizedTime * 2) * 0.1;
   }
 }
 

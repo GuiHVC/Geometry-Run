@@ -240,7 +240,6 @@ function crieShaders() {
 function render() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // gl.bindVertexArray(gShader.CuboVAO);
 
   eye = vec3(CAMERA_RAIO * Math.sin(gCtx.camTheta[0]) * Math.cos(gCtx.camTheta[1]),
               CAMERA_RAIO * Math.sin(gCtx.camTheta[1]),
