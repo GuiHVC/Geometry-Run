@@ -21,6 +21,9 @@ var gScore = {
 };
 var gState = {
     speed: 0.1,
+    sideSpeed: 0.2,
+    moveLeft: false,
+    moveRight: false,
     isJumping: false,
     yVelocity: 0,
     gravity: -0.01,
@@ -72,6 +75,12 @@ function setupEventListeners() {
         }
         if (event.key === 'Escape') {
             togglePause();
+        }
+        if (event.code === 'ArrowLeft' || event.key === 'a' || event.key === 'A') {
+            gState.moveLeft = true;
+        }
+        if (event.code === 'ArrowRight' || event.key === 'd' || event.key === 'D') {
+            gState.moveRight = true;
         }
     });
 
@@ -284,6 +293,15 @@ function update() {
         gPlayer.rotation += 0.5;
         return;
     }
+
+    if (gState.moveLeft) {
+        gPlayer.pos[0] -= gState.sideSpeed;
+        gState.moveLeft = false;
+    }
+    if (gState.moveRight) {
+        gPlayer.pos[0] += gState.sideSpeed;
+        gState.moveRight = false;
+    }
     
     gPlayer.pos[2] -= gState.speed;
 
@@ -434,8 +452,17 @@ function render() {
         drawObject(gPlayer, gShader.cubeVao);
         gFloor.pos[2] = gPlayer.pos[2];
         drawObject(gFloor, gShader.cubeVao);
-        gObstacles.forEach(obs => drawObject(obs, gShader.spikeVao));
-        gCoins.forEach(coin => drawObject(coin, gShader.coinVao));
+        const maxDrawDistance = 80; // não desenha objetos longe demais
+        gObstacles.forEach(obs => {
+            if (Math.abs(obs.pos[2] - gPlayer.pos[2]) < maxDrawDistance) {
+                drawObject(obs, gShader.spikeVao);
+            }
+        });
+        gCoins.forEach(coin => {
+            if (Math.abs(coin.pos[2] - gPlayer.pos[2]) < maxDrawDistance) {
+                drawObject(coin, gShader.coinVao);
+            }
+        });
         gSea.pos[2] = gPlayer.pos[2];
         drawObject(gSea, gShader.seaVao, true);
     }
