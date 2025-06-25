@@ -18,7 +18,7 @@ var gPlayer = {};
 gPlayer.shearAmount = 0;
 gPlayer.shearVelocity = 0;
 gPlayer.shearTarget = 0;
-gPlayer.prevVelocityX = 0; // we need it to give the cube a spring like effect
+gPlayer.prevVelocityX = 0;
 var gFloor = {};
 var gObstacles = [];
 var gCoins = [];
@@ -37,7 +37,7 @@ var gAudioBuffer = null;
 var gBufferSource = null;
 var gPeakTimestamps = [];
 var gSpawnIndex = 0;
-var gAudioStartTime = 0; // To track when the audio started playing
+var gAudioStartTime = 0;
 var main_menu_clicked = false;
 const smoothingFactor = 0.8;
 const variationThreshold = 0.18;
@@ -83,6 +83,10 @@ const STYLE_DATA = {
         default: { name: 'Default Cube', price: 0 },
         creeper: { name: 'Creeper Cube', price: 15 },
         steve: { name: 'Steve Cube', price: 15 },
+    },
+    floor: {
+        forest: { name: 'Forest Floor', price: 20 },
+        sea: { name: 'Sea Floor', price: 20 }
     }
 };
 
@@ -102,11 +106,19 @@ var gGameData = {
             default: { purchased: true },
             creeper: { purchased: false },
             steve: { purchased: false }
+        },
+        floor: {
+            forest: { purchased: false },
+            sea: { purchased: false }
         }
     },
     equippedStyles: {
         tree: 'default',
-        cube: 'default'
+        cube: 'default',
+        floor: {
+            forest: false,
+            sea: false
+        }
     }
 };
 
@@ -133,9 +145,8 @@ function main() {
     createGameObjects();
     setupEventListeners();
     
-    // Initialize AudioContext
     gAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    fetchAndAnalyzeAudio(); // Call this to load and analyze the audio
+    fetchAndAnalyzeAudio();
 
     gState.startTime = Date.now();
     render();
@@ -204,16 +215,14 @@ function setupEventListeners() {
         }
         
         if (!gState.isJumping) {
-            // Move right (D key)
             if (event.key === 'd' || event.key === 'D') {
-                if (gState.currentLane < 2) { // Cannot move right if in the rightmost lane
+                if (gState.currentLane < 2) {
                     gState.currentLane++;
                 }
             }
             
-            // Move left (A key)
             if (event.key === 'a' || event.key === 'A') {
-                if (gState.currentLane > 0) { // Cannot move left if in the leftmost lane
+                if (gState.currentLane > 0) {
                     gState.currentLane--;
                 }
             }
@@ -273,22 +282,19 @@ function togglePause() {
         gState.current = 'paused';
         document.getElementById('pause-overlay').classList.remove('hidden');
         if (gBufferSource) {
-            // Stop the audio when paused. Note: AudioBufferSourceNode cannot be truly paused.
-            // We'll restart it from the correct time when unpausing.
             gBufferSource.stop();
-            gBufferSource = null; // Clear the source
+            gBufferSource = null;
         }
     } else if (gState.current === 'paused') {
         gState.pausedDuration += Date.now() - gState.timeWhenPaused;
         gState.current = 'playing';
         document.getElementById('pause-overlay').classList.add('hidden');
-        // Resume audio from where it left off
         if (gAudioBuffer) {
             gBufferSource = gAudioCtx.createBufferSource();
             gBufferSource.buffer = gAudioBuffer;
             gBufferSource.connect(gAudioCtx.destination);
             const offset = gAudioCtx.currentTime - gAudioStartTime;
-            gBufferSource.start(0, offset); // Start from the offset
+            gBufferSource.start(0, offset);
         }
     }
 }
@@ -299,18 +305,17 @@ function startGame() {
     document.getElementById('score-display').style.display = 'block';
     resetGame();
     gState.current = 'playing';
-    // Start audio playback when the game starts
     if (gAudioBuffer) {
-        if (gBufferSource) { // If a previous source exists (e.g., from menu rotation), stop it
+        if (gBufferSource) {
             gBufferSource.stop();
             gBufferSource = null;
         }
         gBufferSource = gAudioCtx.createBufferSource();
         gBufferSource.buffer = gAudioBuffer;
         gBufferSource.connect(gAudioCtx.destination);
-        gAudioStartTime = gAudioCtx.currentTime; // Record the start time
+        gAudioStartTime = gAudioCtx.currentTime;
         gBufferSource.start(0);
-        gSpawnIndex = 0; // Reset spawn index for obstacles
+        gSpawnIndex = 0;
     }
 }
 
@@ -326,7 +331,6 @@ function resetGame() {
 
     gCtx.cameraOffset = vec3(0, 4, 8);
 
-    // Reset obstacle positions
     for (let i = 0; i < gObstacles.length; i++) {
         const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
         gObstacles[i].pos = vec3(randomLane, 0.5, -20 - (i * 15));
@@ -362,18 +366,15 @@ function resetGame() {
     instructions.style.display = 'block';
     document.getElementById('pause-overlay').classList.add('hidden');
 
-    // Reset audio context if suspended
     if (gAudioCtx.state === 'suspended') {
         gAudioCtx.resume();
     }
 
-    // Stop previous audio buffer if any
     if (gBufferSource) {
         try { gBufferSource.stop(); } catch (e) {}
         gBufferSource = null;
     }
 
-    // Create new audio buffer source
     if (!main_menu_clicked) {
         gBufferSource = gAudioCtx.createBufferSource();
         gBufferSource.buffer = gAudioBuffer;
@@ -425,11 +426,22 @@ function populateShop() {
             let buttonHtml;
 
             if (gGameData.items[styleGroup][styleId].purchased) {
-                if (gGameData.equippedStyles[styleGroup] === styleId) {
-                     buttonHtml = `<button class="buy-button equipped" disabled>Equipped</button>`;
+                if (styleGroup === 'floor') {
+                    if (gGameData.equippedStyles.floor[styleId]) {
+                        buttonHtml = `<button class="buy-button equipped">Unequip</button>`;
+                    } else {
+                        buttonHtml = `<button class="buy-button purchased">Equip</button>`;
+                    }
+                    
+                    itemDiv.onclick = () => handleEquipStyle(styleGroup, styleId);
                 } else {
-                     buttonHtml = `<button class="buy-button purchased">Equip</button>`;
-                     itemDiv.onclick = () => handleEquipStyle(styleGroup, styleId);
+                    
+                    if (gGameData.equippedStyles[styleGroup] === styleId) {
+                         buttonHtml = `<button class="buy-button equipped" disabled>Equipped</button>`;
+                    } else {
+                         buttonHtml = `<button class="buy-button purchased">Equip</button>`;
+                         itemDiv.onclick = () => handleEquipStyle(styleGroup, styleId);
+                    }
                 }
             } else {
                 const canAfford = gGameData.coins >= style.price;
@@ -473,17 +485,15 @@ function handleBuyStyle(styleGroup, styleId) {
 }
 
 function handleEquipStyle(styleGroup, styleId) {
-    gGameData.equippedStyles[styleGroup] = styleId;
+    if (styleGroup === 'floor') {
+        gGameData.equippedStyles.floor[styleId] = !gGameData.equippedStyles.floor[styleId];
+    } else {
+        gGameData.equippedStyles[styleGroup] = styleId;
+    }
     saveGameData();
     populateShop();
 }
 
-/**
- * Checks for obstacles near a given Z-position and returns an available lane's X-coordinate.
- * @param {number} zPos The Z-position to check around.
- * @param {number} safeDistance The minimum distance from an obstacle on the Z-axis.
- * @returns {number|null} The X-coordinate of a free lane, or null if no lanes are free.
- */
 function findAvailableLane(zPos, safeDistance = 5.0) {
     let availableLanes = [0, 1, 2];
     for (const obstacle of gObstacles) {
@@ -498,7 +508,7 @@ function findAvailableLane(zPos, safeDistance = 5.0) {
         const randomLaneIndex = availableLanes[Math.floor(Math.random() * availableLanes.length)];
         return LANE_POSITIONS[randomLaneIndex];
     }
-    return null; // No available lane found
+    return null;
 }
 
 function setupShaders() {
@@ -607,8 +617,8 @@ function createGameObjects() {
     // Forest
     gForestPlane = {
         geom: new Plano(150, 150, 50),
-        mat: makeMaterial(vec4(0.1, 0.4, 0.2, 1.0), vec4(0.1, 0.4, 0.2, 1.0)), // A dark green material
-        pos: vec3(0, -0.5, 0) // Position it at the same level as the sea
+        mat: makeMaterial(vec4(0.1, 0.4, 0.2, 1.0), vec4(0.1, 0.4, 0.2, 1.0)),
+        pos: vec3(0, -0.5, 0)
     };
 
     const createVAO = (geometry) => {
@@ -737,11 +747,11 @@ function update() {
         if (!gPlayer.lastSpawnTime || (currentTimeInAudio - gPlayer.lastSpawnTime > 0.5)) {
             const newZPos = playerZ - travelDistance;
 
-            // Find recyclable obstacles behind the player
+
             const recyclable = gObstacles.filter(o => o.pos[2] > playerZ + margin);
             const sortedObstacles = recyclable.sort((a, b) => a.pos[2] - b.pos[2]);
 
-            // Shuffle lanes and pick 1–3 to place spikes
+
             const shuffledLanes = LANE_POSITIONS.slice().sort(() => Math.random() - 0.5);
             const spikeCount = 3;
 
@@ -757,7 +767,7 @@ function update() {
         }
         gSpawnIndex++;
     }
-    // Continue moving existing obstacles towards the player
+
     for (const obstacle of gObstacles) {
         obstacle.pos[2] += gState.speed * 0.1;
     }
@@ -816,7 +826,7 @@ function checkCollisions() {
             document.getElementById('score-display').classList.add('hidden');
             document.getElementById('game-over-overlay').classList.remove('hidden');
             
-            // Stop audio when game is over
+
             if (gBufferSource) {
                 gBufferSource.stop();
                 gBufferSource = null;
@@ -876,7 +886,7 @@ function render() {
         gl.uniform1f(gShader.uAlfaEsp, obj.mat.alfa);
         gl.uniform1i(gShader.uIsSea, isSea);
 
-        // Centralized texture handling
+
         if (texture) {
             gl.uniform1i(gShader.uUseTexture, 1);
             gl.activeTexture(gl.TEXTURE0);
@@ -890,7 +900,7 @@ function render() {
         let scaleMatrix = mat4();
         let shearMatrix = mat4();
         let rotationMatrix = mat4();
-        let fixedRotationMatrix = mat4(); // Rotação especial para as moedas (cilindro deitado)
+        let fixedRotationMatrix = mat4();
 
         if (obj.scale) {
             scaleMatrix = scale(obj.scale[0], obj.scale[1], obj.scale[2]);
@@ -952,12 +962,24 @@ function render() {
 
         const maxDrawDistance = 65;
 
-        if (gGameData.equippedTheme === 'sea') {
+        const equippedTheme = gGameData.equippedTheme;
+        const equippedFloors = gGameData.equippedStyles.floor;
+
+        if (equippedTheme === 'sea') {
+            let activeTexture = null;
+            if (equippedFloors.sea) {
+                activeTexture = gSeaFloorTexture;
+            }
             gSea.pos[2] = gPlayer.pos[2];
-            drawObject(gSea, gShader.seaVao, gSeaFloorTexture, true);
+            drawObject(gSea, gShader.seaVao, activeTexture, true);
+
         } else {
+            let activeTexture = null;
+            if (equippedFloors.forest) {
+                activeTexture = gForestFloorTexture;
+            }
             gForestPlane.pos[2] = gPlayer.pos[2];
-            drawObject(gForestPlane, gShader.planeVao, gForestFloorTexture, false);
+            drawObject(gForestPlane, gShader.planeVao, activeTexture, false);
 
             gTrees.forEach(tree => {
                 const baseModel = translate(tree.pos[0], tree.pos[1], tree.pos[2]);
