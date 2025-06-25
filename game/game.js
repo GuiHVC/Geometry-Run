@@ -727,21 +727,29 @@ function update() {
     
     const travelDistance = 20;
     const currentTimeInAudio = gAudioCtx.currentTime - gAudioStartTime;
+    const playerZ = gPlayer.pos[2];
+    const margin = 5;
 
     if (
         gSpawnIndex < gPeakTimestamps.length &&
         gPeakTimestamps[gSpawnIndex] - 1.0 <= currentTimeInAudio
     ) {
         if (!gPlayer.lastSpawnTime || (currentTimeInAudio - gPlayer.lastSpawnTime > 0.5)) {
-            const newZPos = gPlayer.pos[2] - travelDistance;
+            const newZPos = playerZ - travelDistance;
 
-            const sortedObstacles = [...gObstacles].sort((a, b) => b.pos[2] - a.pos[2]);
+            // Find recyclable obstacles behind the player
+            const recyclable = gObstacles.filter(o => o.pos[2] > playerZ + margin);
+            const sortedObstacles = recyclable.sort((a, b) => a.pos[2] - b.pos[2]);
 
-            for (let i = 0; i < 3; i++) {
+            // Shuffle lanes and pick 1–3 to place spikes
+            const shuffledLanes = LANE_POSITIONS.slice().sort(() => Math.random() - 0.5);
+            const spikeCount = 3;
+
+            for (let i = 0; i < spikeCount; i++) {
                 if (i < sortedObstacles.length) {
-                    let obstacleToRecycle = sortedObstacles[i];
-                    const laneX = LANE_POSITIONS[i];
-                    obstacleToRecycle.pos = vec3(laneX, 0.5, newZPos);
+                    const laneX = shuffledLanes[i];
+                    const obstacle = sortedObstacles[i];
+                    obstacle.pos = vec3(laneX, 0.5, newZPos);
                 }
             }
 
