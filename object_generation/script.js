@@ -78,12 +78,10 @@ function spawnObject() {
 }
 
 function updateObstacles() {
-    // Move obstacles to the left
     for (const obs of obstacles) {
         obs.x -= obstacleSpeed;
     }
 
-    // Remove off-screen obstacles
     for (let i = obstacles.length - 1; i >= 0; i--) {
         if (obstacles[i].x + obstacles[i].size < 0) {
             obstacles.splice(i, 1);

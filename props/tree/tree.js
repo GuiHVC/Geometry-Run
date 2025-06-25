@@ -17,11 +17,9 @@ export class Arvore {
    * @param {boolean} useTextures A flag to determine whether to render with textures or lighting.
    */
   render(gl, gShader, gCtx, baseModel, materials, useTextures) {
-    //this.theta[1] += 0.5;
 
     const instanceRotation = rotate(this.theta[1], vec3(0, 1, 0));
 
-    // Desenha Tronco
     let trunkModel = mult(baseModel, instanceRotation);
     trunkModel = mult(trunkModel, translate(0, -0.5, 0));
     trunkModel = mult(trunkModel, scale(1.0, 1.6, 1.0));
@@ -43,7 +41,6 @@ export class Arvore {
     gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(transpose(inverse(modelView))));
     gl.drawArrays(gl.TRIANGLES, 0, this.base.np);
 
-    // Desenha Folhas
     if (useTextures) {
       gl.bindTexture(gl.TEXTURE_2D, materials.pointyLeaves);
     } else {
@@ -78,10 +75,8 @@ export class ArvoreRedonda {
   }
   
   render(gl, gShader, gCtx, baseModel, materials, useTextures) {
-    //this.theta[1] += 0.5;
     const instanceRotation = rotate(this.theta[1], vec3(0, 1, 0));
 
-    // Desenha Tronco
     let trunkModel = mult(baseModel, instanceRotation);
     trunkModel = mult(trunkModel, translate(0, -0.5, 0));
     trunkModel = mult(trunkModel, scale(1.0, 1.6, 1.0));
@@ -103,7 +98,6 @@ export class ArvoreRedonda {
     gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(transpose(inverse(modelView))));
     gl.drawArrays(gl.TRIANGLES, 0, this.base.np);
 
-    // Desenha Folhas
     if (useTextures) {
       gl.bindTexture(gl.TEXTURE_2D, materials.roundLeaves);
     } else {
@@ -139,10 +133,8 @@ export class ArvoreComGalhos {
   }
 
   render(gl, gShader, gCtx, baseModel, materials, useTextures) {
-    //this.theta[1] += 0.5;
     const instanceRotation = rotate(this.theta[1], vec3(0, 1, 0));
 
-    // Desenha Tronco
     let trunkModel = mult(baseModel, instanceRotation);
     trunkModel = mult(trunkModel, translate(0, 0.4, 0));
     trunkModel = mult(trunkModel, scale(1.0, 3.6, 1.0));
@@ -164,7 +156,6 @@ export class ArvoreComGalhos {
     gl.uniformMatrix4fv(gShader.uInverseTranspose, false, flatten(transpose(inverse(trunkModelView))));
     gl.drawArrays(gl.TRIANGLES, 0, this.base.np);
 
-    // Desenha Galhos
     const branchScales = [[0.2, 1.6, 0.2], [0.2, 1.6, 0.2]];
     const branchOffsets = [[0.2, 1.2, 0], [-0.2, 1.5, 0.1]];
     const branchRotations = [[-35, 0, -30], [-25, 0, 30]]; 
@@ -184,7 +175,6 @@ export class ArvoreComGalhos {
         gl.drawArrays(gl.TRIANGLES, 0, this.branches[i].np);
     }
 
-    // Desenha Folhas
     if (useTextures) {
         gl.bindTexture(gl.TEXTURE_2D, materials.roundLeaves);
     } else {
