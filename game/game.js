@@ -38,7 +38,7 @@ var gBufferSource = null;
 var gPeakTimestamps = [];
 var gSpawnIndex = 0;
 var gAudioStartTime = 0; // To track when the audio started playing
-
+var main_menu_clicked = false;
 const smoothingFactor = 0.8;
 const variationThreshold = 0.18;
 const frameSize = 512;
@@ -260,8 +260,10 @@ function setupEventListeners() {
         document.getElementById('game-over-overlay').classList.add('hidden');
         document.getElementById('menu-overlay').classList.remove('hidden');
         document.getElementById('score-display').classList.remove('hidden');
+        main_menu_clicked = true;
         resetGame();
         gState.current = 'menu';
+        main_menu_clicked = false;
     };
 }
 
@@ -372,12 +374,13 @@ function resetGame() {
     }
 
     // Create new audio buffer source
-    gBufferSource = gAudioCtx.createBufferSource();
-    gBufferSource.buffer = gAudioBuffer;
-    gBufferSource.connect(gAudioCtx.destination);
-    gAudioStartTime = gAudioCtx.currentTime;
-    gBufferSource.start();
-
+    if (!main_menu_clicked) {
+        gBufferSource = gAudioCtx.createBufferSource();
+        gBufferSource.buffer = gAudioBuffer;
+        gBufferSource.connect(gAudioCtx.destination);
+        gAudioStartTime = gAudioCtx.currentTime;
+        gBufferSource.start();
+    }
     gSpawnIndex = 0;
 }
 
