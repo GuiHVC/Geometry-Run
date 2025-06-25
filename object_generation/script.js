@@ -33,7 +33,7 @@ function main() {
 }
 
 async function fetchAndAnalyzeAudio() {
-    const response = await fetch("./sounds/Polargeist.mp3");
+    const response = await fetch("../sounds/Polargeist.mp3");
     const arrayBuffer = await response.arrayBuffer();
     audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 

@@ -32,6 +32,19 @@ var gLeafTexture;
 var gCreeperTexture;
 var gSteveTexture;
 
+var gAudioCtx;
+var gAudioBuffer = null;
+var gBufferSource = null;
+var gPeakTimestamps = [];
+var gSpawnIndex = 0;
+var gAudioStartTime = 0; // To track when the audio started playing
+
+const smoothingFactor = 0.8;
+const variationThreshold = 0.18;
+const frameSize = 512;
+const hopSize = 512;
+
+
 var gState = {
     speed: 0.3,
     isJumping: false,
@@ -120,9 +133,46 @@ function main() {
     createGameObjects();
     setupEventListeners();
     
+    // Initialize AudioContext
+    gAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    fetchAndAnalyzeAudio(); // Call this to load and analyze the audio
+
     gState.startTime = Date.now();
     render();
-}
+};
+
+async function fetchAndAnalyzeAudio() {
+    const response = await fetch("../sounds/Polargeist.mp3");
+    const arrayBuffer = await response.arrayBuffer();
+    gAudioBuffer = await gAudioCtx.decodeAudioData(arrayBuffer);
+    analyzeBuffer(gAudioBuffer);
+};
+
+function analyzeBuffer(buffer) {
+    const rawData = buffer.getChannelData(0);
+    const sampleRate = buffer.sampleRate;
+
+    let smoothed = 0;
+    for (let i = 0; i < rawData.length; i += hopSize) {
+        let sum = 0;
+        for (let j = 0; j < frameSize && i + j < rawData.length; j++) {
+            sum += rawData[i + j] * rawData[i + j];
+        }
+        const rms = Math.sqrt(sum / frameSize);
+
+        smoothed = smoothingFactor * smoothed + (1 - smoothingFactor) * rms;
+        const delta = rms - smoothed;
+
+        if (
+            delta > variationThreshold &&
+            (gPeakTimestamps.length === 0 ||
+                i / sampleRate - gPeakTimestamps[gPeakTimestamps.length - 1] > 0.15)
+        ) {
+            gPeakTimestamps.push(i / sampleRate);
+        }
+    }
+    console.log("Detected peaks at:", gPeakTimestamps);
+};
 
 function saveGameData() {
     localStorage.setItem('saveFile', JSON.stringify(gGameData));
@@ -220,10 +270,24 @@ function togglePause() {
         gState.timeWhenPaused = Date.now();
         gState.current = 'paused';
         document.getElementById('pause-overlay').classList.remove('hidden');
+        if (gBufferSource) {
+            // Stop the audio when paused. Note: AudioBufferSourceNode cannot be truly paused.
+            // We'll restart it from the correct time when unpausing.
+            gBufferSource.stop();
+            gBufferSource = null; // Clear the source
+        }
     } else if (gState.current === 'paused') {
         gState.pausedDuration += Date.now() - gState.timeWhenPaused;
         gState.current = 'playing';
         document.getElementById('pause-overlay').classList.add('hidden');
+        // Resume audio from where it left off
+        if (gAudioBuffer) {
+            gBufferSource = gAudioCtx.createBufferSource();
+            gBufferSource.buffer = gAudioBuffer;
+            gBufferSource.connect(gAudioCtx.destination);
+            const offset = gAudioCtx.currentTime - gAudioStartTime;
+            gBufferSource.start(0, offset); // Start from the offset
+        }
     }
 }
 
@@ -233,6 +297,19 @@ function startGame() {
     document.getElementById('score-display').style.display = 'block';
     resetGame();
     gState.current = 'playing';
+    // Start audio playback when the game starts
+    if (gAudioBuffer) {
+        if (gBufferSource) { // If a previous source exists (e.g., from menu rotation), stop it
+            gBufferSource.stop();
+            gBufferSource = null;
+        }
+        gBufferSource = gAudioCtx.createBufferSource();
+        gBufferSource.buffer = gAudioBuffer;
+        gBufferSource.connect(gAudioCtx.destination);
+        gAudioStartTime = gAudioCtx.currentTime; // Record the start time
+        gBufferSource.start(0);
+        gSpawnIndex = 0; // Reset spawn index for obstacles
+    }
 }
 
 function resetGame() {
@@ -243,9 +320,11 @@ function resetGame() {
     gPlayer.shearAmount = 0;
     gPlayer.shearVelocity = 0;
     gPlayer.prevVelocityX = 0;
-    
+    gPlayer.lastSpawnTime = null;
+
     gCtx.cameraOffset = vec3(0, 4, 8);
 
+    // Reset obstacle positions
     for (let i = 0; i < gObstacles.length; i++) {
         const randomLane = LANE_POSITIONS[Math.floor(Math.random() * 3)];
         gObstacles[i].pos = vec3(randomLane, 0.5, -20 - (i * 15));
@@ -259,8 +338,6 @@ function resetGame() {
         if (availableLaneX !== null) {
             coin.pos = vec3(availableLaneX, coin.baseY, zPos);
         } else {
-            // If no lane is available, move the coin out of sight.
-            // It will eventually be recycled by the update loop.
             coin.pos = vec3(0, -100, 0); 
         }
     }
@@ -282,6 +359,26 @@ function resetGame() {
     const instructions = document.getElementById('instructions');
     instructions.style.display = 'block';
     document.getElementById('pause-overlay').classList.add('hidden');
+
+    // Reset audio context if suspended
+    if (gAudioCtx.state === 'suspended') {
+        gAudioCtx.resume();
+    }
+
+    // Stop previous audio buffer if any
+    if (gBufferSource) {
+        try { gBufferSource.stop(); } catch (e) {}
+        gBufferSource = null;
+    }
+
+    // Create new audio buffer source
+    gBufferSource = gAudioCtx.createBufferSource();
+    gBufferSource.buffer = gAudioBuffer;
+    gBufferSource.connect(gAudioCtx.destination);
+    gAudioStartTime = gAudioCtx.currentTime;
+    gBufferSource.start();
+
+    gSpawnIndex = 0;
 }
 
 function populateShop() {
@@ -592,21 +689,18 @@ function update() {
     }
 
     const targetX = LANE_POSITIONS[gState.currentLane];
-    const lerpSpeed = 0.25; // Lane switch speed
+    const lerpSpeed = 0.25;
     const prevX = gPlayer.pos[0];
     gPlayer.pos[0] += (targetX - gPlayer.pos[0]) * lerpSpeed;
 
-    // Spring effect
     const currentVelocityX = gPlayer.pos[0] - prevX;
     const accelerationX = currentVelocityX - (gPlayer.prevVelocityX || 0);
     gPlayer.prevVelocityX = currentVelocityX;
 
-    // Properties for the spring model
-    const springStiffness = 0.5;  // dureza
-    const springDamping = 0.55;   // quao rapido para de oscilar
+    const springStiffness = 0.5;
+    const springDamping = 0.55;
     const externalForceMultiplier = 1.0;
 
-    // Calculate forces acting on the shear based on our spring model
     const springForce = -springStiffness * gPlayer.shearAmount;
     const dampingForce = -springDamping * gPlayer.shearVelocity;
     const externalForce = -accelerationX * externalForceMultiplier;
@@ -628,13 +722,36 @@ function update() {
         }
     }
     
-    for (const obstacle of gObstacles) {
-        if (obstacle.pos[2] > gPlayer.pos[2] + gCtx.cameraOffset[2]) {
-            obstacle.pos[2] -= gObstacles.length * 15;
-            obstacle.pos[0] = LANE_POSITIONS[Math.floor(Math.random() * 3)];
+    const travelDistance = 20;
+    const currentTimeInAudio = gAudioCtx.currentTime - gAudioStartTime;
+
+    if (
+        gSpawnIndex < gPeakTimestamps.length &&
+        gPeakTimestamps[gSpawnIndex] - 1.0 <= currentTimeInAudio
+    ) {
+        if (!gPlayer.lastSpawnTime || (currentTimeInAudio - gPlayer.lastSpawnTime > 0.5)) {
+            const newZPos = gPlayer.pos[2] - travelDistance;
+
+            const sortedObstacles = [...gObstacles].sort((a, b) => b.pos[2] - a.pos[2]);
+
+            for (let i = 0; i < 3; i++) {
+                if (i < sortedObstacles.length) {
+                    let obstacleToRecycle = sortedObstacles[i];
+                    const laneX = LANE_POSITIONS[i];
+                    obstacleToRecycle.pos = vec3(laneX, 0.5, newZPos);
+                }
+            }
+
+            gPlayer.lastSpawnTime = currentTimeInAudio;
         }
+        gSpawnIndex++;
     }
-    
+    // Continue moving existing obstacles towards the player
+    for (const obstacle of gObstacles) {
+        obstacle.pos[2] += gState.speed * 0.1;
+    }
+
+
     const floatAmplitude = 0.25;
     const floatFrequency = 3.0;
     for (const coin of gCoins) {
@@ -642,14 +759,14 @@ function update() {
         coin.pos[1] = coin.baseY + Math.sin(gState.time * floatFrequency + coin.pos[2]) * floatAmplitude;
 
         if (coin.pos[2] > gPlayer.pos[2] + gCtx.cameraOffset[2] || coin.pos[1] < -50) {
-            const newZ = gPlayer.pos[2] - (gCoins.length * 10 + Math.random() * 10); // Place it far ahead
+            const newZ = gPlayer.pos[2] - (gCoins.length * 10 + Math.random() * 10);
             const newX = findAvailableLane(newZ);
             if (newX !== null) {
                 coin.pos[0] = newX;
                 coin.pos[2] = newZ;
-                coin.pos[1] = coin.baseY; // Restore Y position
+                coin.pos[1] = coin.baseY;
             } else {
-                coin.pos[1] = -100; // Hide coin if no spot is found
+                coin.pos[1] = -100;
             }
         }
     }
@@ -687,6 +804,12 @@ function checkCollisions() {
             document.getElementById('final-score').innerText = `You have ${gGameData.coins} coins!`;
             document.getElementById('score-display').classList.add('hidden');
             document.getElementById('game-over-overlay').classList.remove('hidden');
+            
+            // Stop audio when game is over
+            if (gBufferSource) {
+                gBufferSource.stop();
+                gBufferSource = null;
+            }
             break; 
         }
     }
