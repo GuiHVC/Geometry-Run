@@ -199,14 +199,10 @@ function crieShaders() {
   gShader.program = makeProgram(gl, gVertexShaderSrc, gFragmentShaderSrc);
   gl.useProgram(gShader.program);
 
-  gShader.ArvoreVAOs = [];
-  gShader.ArvoreVAOs.push(setVAO(gArvore.base));
-  for(let leaf of gArvore.leaves) {
-    gShader.ArvoreVAOs.push(setVAO(leaf));
-  };
-  for (let branch of gArvore.branches) {
-    gShader.ArvoreVAOs.push(setVAO(branch));
-  }
+  // Create VAOs with the names expected by the tree classes
+  gShader.treeTrunkVao = setVAO(gArvore.base);
+  gShader.roundLeafVao = setVAO(gArvore.leaves[0]); // Assuming spherical leaves for ArvoreComGalhos
+  
   // resolve os uniforms
   gShader.uModel = gl.getUniformLocation(gShader.program, "uModel");
   gShader.uView = gl.getUniformLocation(gShader.program, "uView");
@@ -223,6 +219,10 @@ function crieShaders() {
   // parametros para iluminação
   gShader.uLuzPos = gl.getUniformLocation(gShader.program, "uLuzPos");
   gl.uniform4fv(gShader.uLuzPos, LUZ.pos);
+
+  // texture uniforms
+  gShader.uTextureMap = gl.getUniformLocation(gShader.program, "uTextureMap");
+  gShader.uUseTexture = gl.getUniformLocation(gShader.program, "uUseTexture");
 
   // fragment shader
   gShader.uCorAmb = gl.getUniformLocation(gShader.program, "uCorAmbiente");
@@ -254,9 +254,12 @@ function render() {
               CAMERA_RAIO * Math.cos(gCtx.camTheta[0]) * Math.cos(gCtx.camTheta[1]));
   gCtx.view = lookAt(eye, at, up);
   gl.uniformMatrix4fv(gShader.uView, false, flatten(gCtx.view));
-
+  let materials = {
+    trunk: trunkTexture,
+    roundLeaves: leafTexture,
+  };
   // renderiza a árvore
-  gArvore.render(gl, gShader, gCtx, trunkTexture, leafTexture);
+  gArvore.render(gl, gShader, gCtx, mat4(), materials, true);
 
   window.requestAnimationFrame(render);
 }
@@ -316,6 +319,7 @@ uniform vec4 uCorDifusao;
 uniform vec4 uCorEspecular;
 uniform float uAlfaEsp;
 uniform sampler2D uTextureMap;
+uniform int uUseTexture;
 
 void main() {
     vec3 normalV = normalize(vNormal);
@@ -335,8 +339,12 @@ void main() {
     
     vec4 especular = ks * uCorEspecular;
 
-    vec4 texColor = texture(uTextureMap, vTexCoord);
-    corSaida = (difusao + especular + uCorAmbiente) * texColor;
+    if (uUseTexture == 1) {
+        vec4 texColor = texture(uTextureMap, vTexCoord);
+        corSaida = (difusao + especular + uCorAmbiente) * texColor;
+    } else {
+        corSaida = difusao + especular + uCorAmbiente;
+    }
     corSaida.a = 1.0;
 }
 `;

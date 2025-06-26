@@ -76,7 +76,8 @@ export class ArvoreRedonda {
   
   render(gl, gShader, gCtx, baseModel, materials, useTextures) {
     const instanceRotation = rotate(this.theta[1], vec3(0, 1, 0));
-
+    baseModel = mult(baseModel, translate(0, -0.5, -2));
+    baseModel = mult(baseModel, rotate(90, vec3(0, 1, 0)));
     let trunkModel = mult(baseModel, instanceRotation);
     trunkModel = mult(trunkModel, translate(0, -0.5, 0));
     trunkModel = mult(trunkModel, scale(1.0, 1.6, 1.0));
@@ -110,7 +111,7 @@ export class ArvoreRedonda {
 
     for (let i = 0; i < this.leaves.length; ++i) {
       let leafModel = mult(baseModel, instanceRotation);
-      leafModel = mult(leafModel, translate(0, leafOffsets[i] - 0.5, 0));
+      leafModel = mult(leafModel, translate(0, leafOffsets[i], 0));
       leafModel = mult(leafModel, scale(...leavesScales[i]));
 
       gl.bindVertexArray(gShader.roundLeafVao);
