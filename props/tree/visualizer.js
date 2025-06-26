@@ -67,7 +67,7 @@ var gl;        // webgl2
 var gCanvas;   // canvas
 
 // objeto a ser renderizado
-var gArvore = new ArvoreRedonda();
+var gArvore = new Arvore();
 
 // guarda coisas do shader
 var gShader = {
@@ -201,7 +201,7 @@ function crieShaders() {
 
   // Create VAOs with the names expected by the tree classes
   gShader.treeTrunkVao = setVAO(gArvore.base);
-  gShader.roundLeafVao = setVAO(gArvore.leaves[0]); // Assuming spherical leaves for ArvoreComGalhos
+  gShader.pointyLeafVao = setVAO(gArvore.leaves[0]); // Assuming spherical leaves for ArvoreComGalhos
   
   // resolve os uniforms
   gShader.uModel = gl.getUniformLocation(gShader.program, "uModel");
@@ -256,7 +256,7 @@ function render() {
   gl.uniformMatrix4fv(gShader.uView, false, flatten(gCtx.view));
   let materials = {
     trunk: trunkTexture,
-    roundLeaves: leafTexture,
+    pointyLeaves: leafTexture,
   };
   // renderiza a árvore
   gArvore.render(gl, gShader, gCtx, mat4(), materials, true);

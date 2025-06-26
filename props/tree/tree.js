@@ -19,7 +19,7 @@ export class Arvore {
   render(gl, gShader, gCtx, baseModel, materials, useTextures) {
 
     const instanceRotation = rotate(this.theta[1], vec3(0, 1, 0));
-
+    baseModel = mult(baseModel, translate(0, -0.5, -4));
     let trunkModel = mult(baseModel, instanceRotation);
     trunkModel = mult(trunkModel, translate(0, -0.5, 0));
     trunkModel = mult(trunkModel, scale(1.0, 1.6, 1.0));
@@ -48,8 +48,8 @@ export class Arvore {
       gl.uniform4fv(gShader.uCorDif, flatten(materials.pointyLeaves.dif));
     }
     
-    const leavesScales = [[3.0, 2, 3.0], [2.6, 2, 2.6], [2.2, 2, 2.2]];
-    const leafOffsets = [0.8, 1.1, 1.4];
+    const leavesScales = [[2.8, 2.4, 2.8], [2.6, 2, 2.6], [2.4, 1.6, 2.4]];
+    const leafOffsets = [1.8, 2.2, 2.6];
 
     for (let i = 0; i < this.leaves.length; ++i) {
       let leafModel = mult(baseModel, instanceRotation);
