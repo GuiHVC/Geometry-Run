@@ -67,7 +67,7 @@ var gl;        // webgl2
 var gCanvas;   // canvas
 
 // objeto a ser renderizado
-var gArvore = new ArvoreComGalhos();
+var gArvore = new ArvoreRedonda();
 
 // guarda coisas do shader
 var gShader = {
