@@ -1,8 +1,8 @@
 "use strict";
 
-import { Cilindro, Cubo, Espinho, Plano, Esfera, configureTextura, shear } from '../props/props.js';
+import { Cilindro, Cubo, Espinho, Plano, Esfera, configureTextura, shear } from './props/props.js';
 
-import { Arvore, ArvoreRedonda, ArvoreComGalhos } from '../props/tree/tree.js';
+import { Arvore, ArvoreRedonda, ArvoreComGalhos } from './props/tree/tree.js';
 
 // ========================================================
 // GLOBAL VARIABLES & CONSTANTS
@@ -153,7 +153,7 @@ function main() {
 };
 
 async function fetchAndAnalyzeAudio() {
-    const response = await fetch("../sounds/Polargeist.mp3");
+    const response = await fetch("./sounds/Polargeist.mp3");
     const arrayBuffer = await response.arrayBuffer();
     gAudioBuffer = await gAudioCtx.decodeAudioData(arrayBuffer);
     analyzeBuffer(gAudioBuffer);
@@ -544,12 +544,12 @@ function createGameObjects() {
         alfa: alfa
     });
 
-    gTrunkTexture = configureTextura(gl, '../props/textures/trunk.png');
-    gLeafTexture = configureTextura(gl, '../props/textures/leaves.jpg');
-    gCreeperTexture = configureTextura(gl, '../props/textures/creeper.png');
-    gSeaFloorTexture = configureTextura(gl, '../props/textures/ocean_floor.jpg');
-    gForestFloorTexture = configureTextura(gl, '../props/textures/forest_floor.png');
-    gSteveTexture = configureTextura(gl, '../props/textures/steve.jpg');
+    gTrunkTexture = configureTextura(gl, './props/textures/trunk.png');
+    gLeafTexture = configureTextura(gl, './props/textures/leaves.jpg');
+    gCreeperTexture = configureTextura(gl, './props/textures/creeper.png');
+    gSeaFloorTexture = configureTextura(gl, './props/textures/ocean_floor.jpg');
+    gForestFloorTexture = configureTextura(gl, './props/textures/forest_floor.png');
+    gSteveTexture = configureTextura(gl, './props/textures/steve.jpg');
 
     // Player
     gPlayer = {
